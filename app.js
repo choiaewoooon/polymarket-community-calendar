@@ -1481,8 +1481,15 @@ function renderOverviewEventItem(container, event) {
 }
 
 function renderCalendar(searchQuery = '') {
-    renderWeekView(searchQuery);
-    renderCalendarOverview(searchQuery);
+    if (document.startViewTransition) {
+        document.startViewTransition(() => {
+            renderWeekView(searchQuery);
+            renderCalendarOverview(searchQuery);
+        });
+    } else {
+        renderWeekView(searchQuery);
+        renderCalendarOverview(searchQuery);
+    }
 }
 
 function getMainProb(event) {

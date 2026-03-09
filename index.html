@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polymarket Community - Event Calendar</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0" integrity="sha384-1+ItoWbWcmVSm+Y+dJaUt4SEWNA21/jxef+Z0TSHHVy/dEUxEUEnZ1bHn6GT5hj+" crossorigin="anonymous"></script>
-    <script src="config.js"></script>
 </head>
 <body>
     <div class="container">
@@ -20,6 +18,27 @@
                 <span class="hero-badge-dot"></span>
                 <span class="hero-badge-label">Live</span>
             </div>
+        </div>
+
+        <!-- Page Tabs -->
+        <div class="page-tabs">
+            <button class="page-tab active" data-tab="calendar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>캘린더</span>
+            </button>
+            <button class="page-tab" data-tab="korea">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M2 12h20"></path>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <span>한국 예측 모아보기</span>
+            </button>
         </div>
 
         <!-- Data Range Info Banner -->
@@ -160,6 +179,30 @@
             </div>
         </div>
 
+        <!-- Korea View Section (hidden by default) -->
+        <div class="korea-view-section" id="koreaViewSection" style="display:none;">
+            <div class="korea-view-header">
+                <div class="korea-header-left">
+                    <h2 class="korea-view-title">한국 관련 예측 시장</h2>
+                    <span class="korea-view-count" id="koreaViewCount">0개 시장</span>
+                </div>
+                <div class="korea-header-right">
+                    <div class="korea-sort-group">
+                        <span class="korea-sort-label">정렬:</span>
+                        <button class="korea-sort-btn active" data-sort="endDate">종료일순</button>
+                        <button class="korea-sort-btn" data-sort="volume">거래량순</button>
+                        <button class="korea-sort-btn" data-sort="probability">확률순</button>
+                    </div>
+                </div>
+            </div>
+            <div class="korea-category-filters" id="koreaCategoryFilters">
+                <!-- Korea category chips rendered by JS -->
+            </div>
+            <div class="korea-cards-grid" id="koreaCardsGrid">
+                <!-- Korea market cards rendered by JS -->
+            </div>
+        </div>
+
         <!-- Event Modal -->
         <div class="modal-overlay" id="modalOverlay">
             <div class="modal">
@@ -223,9 +266,9 @@
                         </div>
                         <div class="filter-options" id="timeRemainingOptions">
                             <button class="filter-option active" data-value="all">All</button>
-                            <button class="filter-option" data-value="1">< 1 day</button>
-                            <button class="filter-option" data-value="7">< 7 days</button>
-                            <button class="filter-option" data-value="30">< 30 days</button>
+                            <button class="filter-option" data-value="1">&lt; 1 day</button>
+                            <button class="filter-option" data-value="7">&lt; 7 days</button>
+                            <button class="filter-option" data-value="30">&lt; 30 days</button>
                         </div>
                     </div>
 
@@ -353,7 +396,6 @@
     <!-- Admin Toast -->
     <div id="v2Toast" class="v2-toast"></div>
 
-    <script src="admin-auth.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

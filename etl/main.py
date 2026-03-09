@@ -8,6 +8,7 @@ Polymarket ETL Pipeline
 import os
 import json
 import requests
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -378,6 +379,21 @@ def main():
             print(f"  - {err}")
 
     print(f"✓ 저장 완료: {result['success']}건 Upsert 성공")
+
+    # 7. 오래된 데이터 정리 (2주 이상 지난 과거 이벤트 삭제)
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        cleanup = client.table("poly_events") \
+            .delete() \
+            .lt("end_date", cutoff) \
+            .execute()
+        deleted_count = len(cleanup.data) if cleanup.data else 0
+        if deleted_count > 0:
+            print(f"✓ 오래된 데이터 정리: {deleted_count}건 삭제 (2주 이상 지난 이벤트)")
+        else:
+            print("✓ 정리할 오래된 데이터 없음")
+    except Exception as e:
+        print(f"⚠ 데이터 정리 실패 (무시): {e}")
 
     print("=" * 50)
     print("ETL Pipeline 완료")

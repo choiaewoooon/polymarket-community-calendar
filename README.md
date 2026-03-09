@@ -305,8 +305,10 @@ Polymarket의 그룹 이벤트 처리:
 
 ## 📚 추가 문서
 
+- **[docs/CLAUDE_CODE_GUIDE.md](./docs/CLAUDE_CODE_GUIDE.md)**: Claude Code 에이전트 & 자동화 가이드
 - **[SYSTEM_OVERVIEW.md](./SYSTEM_OVERVIEW.md)**: 상세 아키텍처 + 수정 내역
 - **[AGENT_GUIDELINES.md](./AGENT_GUIDELINES.md)**: AI 에이전트 작업 지침
+- **[CLAUDE.md](./CLAUDE.md)**: Claude Code 프로젝트 마스터 설정
 - **[etl/README.md](./etl/README.md)**: ETL 파이프라인 문서
 
 ---
