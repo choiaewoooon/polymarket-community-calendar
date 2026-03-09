@@ -398,7 +398,6 @@ export async function loadKoreaData(): Promise<void> {
         const { data, error } = await supabaseClient
             .from('poly_events')
             .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
-            .gte('volume', 100)
             .eq('hidden', false)
             .eq('closed', false)
             .or(orFilter)
@@ -452,7 +451,6 @@ async function loadKoreaDataFallback(): Promise<void> {
         const { data, error } = await supabaseClient
             .from('poly_events')
             .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
-            .gte('volume', 100)
             .eq('hidden', false)
             .eq('closed', false)
             .order('volume', { ascending: false })
