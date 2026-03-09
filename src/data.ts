@@ -334,22 +334,16 @@ function isKoreaRelated(event: PolyEvent): boolean {
     return KOREA_KEYWORDS_EN.some(keyword => titleLower.includes(keyword));
 }
 
-// 서버사이드 필터용 핵심 키워드 (Supabase OR 쿼리)
+// 서버사이드 필터용 최소 핵심 키워드 (타임아웃 방지를 위해 최소화)
+// 'korea' 하나로 Korea/Korean/South Korea/North Korea 전부 매칭
 const KOREA_SERVER_KEYWORDS = [
-    'korea', 'samsung', 'hyundai', 'yoon', 'kim jong',
-    'kospi', 'kosdaq', 'seoul', 'pyongyang', 'kpop', 'k-pop',
-    'bts', 'blackpink', 'squid game', 'kimchi',
-    'lee jae-myung', 'lee jae myung', 'han dong-hoon',
-    'naver', 'kakao', 'coupang', 'sk hynix', 'kia', 'posco',
-    'kbo', 'k league', 'hallyu', 'denuclearization', 'dmz',
-    'armistice', 'dprk', 'krw', 'hanwha', 'celltrion',
-    'won dollar', 'won usd', 'usd/krw',
+    'korea', 'samsung', 'yoon', 'kim jong', 'kospi',
+    'seoul', 'pyongyang', 'bts', 'kimchi', 'dprk',
 ];
 
 function buildKoreaOrFilter(): string {
     const titleFilters = KOREA_SERVER_KEYWORDS.map(kw => `title.ilike.%${kw}%`);
-    const tagFilters = KOREA_TAGS.map(tag => `tags.cs.{${tag}}`);
-    return [...titleFilters, ...tagFilters].join(',');
+    return titleFilters.join(',');
 }
 
 function showKoreaLoading(message: string): void {
@@ -420,64 +414,12 @@ export async function loadKoreaData(): Promise<void> {
             console.warn('⚠️ 한국 데이터 캐시 저장 실패');
         }
     } catch (error) {
-        console.error('❌ 한국 데이터 서버 필터링 실패, 폴백 시도:', error);
-        // 폴백: 기존 방식 (전체 로드 후 필터)
-        showKoreaLoading('데이터 로드 중... (대체 방식)');
-        try {
-            await loadKoreaDataFallback();
-        } catch (fallbackError) {
-            console.error('❌ 폴백도 실패:', fallbackError);
-            localStorage.removeItem(KOREA_CACHE_KEY);
-            localStorage.removeItem(KOREA_CACHE_TIME_KEY);
-            setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
-        }
-    }
-}
-
-// 폴백: 서버사이드 필터링 실패 시 기존 방식
-async function loadKoreaDataFallback(): Promise<void> {
-    if (!supabaseClient) return;
-
-    const PAGE_SIZE = 1000;
-    let allData: PolyEvent[] = [];
-    let offset = 0;
-    let hasMore = true;
-    let page = 0;
-
-    while (hasMore) {
-        page++;
-        showKoreaLoading(`데이터 로드 중... (${allData.length.toLocaleString()}건 수신)`);
-
-        const { data, error } = await supabaseClient
-            .from('poly_events')
-            .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
-            .eq('hidden', false)
-            .eq('closed', false)
-            .order('volume', { ascending: false })
-            .range(offset, offset + PAGE_SIZE - 1);
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            allData = allData.concat(data as PolyEvent[]);
-            offset += PAGE_SIZE;
-            hasMore = data.length === PAGE_SIZE;
-        } else {
-            hasMore = false;
-        }
-    }
-
-    const koreaData = allData.filter(isKoreaRelated);
-    console.log(`✅ 한국 관련 데이터 (폴백): ${koreaData.length}건 (전체 ${allData.length}건)`);
-
-    const grouped = groupSimilarMarkets(koreaData);
-    setKoreaEvents(grouped);
-
-    try {
-        localStorage.setItem(KOREA_CACHE_KEY, JSON.stringify(koreaData));
-        localStorage.setItem(KOREA_CACHE_TIME_KEY, Date.now().toString());
-    } catch (e) {
-        console.warn('⚠️ 한국 데이터 캐시 저장 실패');
+        console.error('❌ 한국 데이터 서버 필터링 실패, 로컬 폴백:', error);
+        // 폴백: 이미 로드된 allEvents에서 필터링 (추가 네트워크 요청 없음)
+        const koreaData = allEvents.filter(isKoreaRelated);
+        console.log(`✅ 한국 관련 데이터 (로컬 폴백): ${koreaData.length}건`);
+        const grouped = groupSimilarMarkets(koreaData);
+        setKoreaEvents(grouped);
     }
 }
 
