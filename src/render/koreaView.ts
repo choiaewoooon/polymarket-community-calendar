@@ -53,8 +53,11 @@ function getSortedEvents(events: PolyEvent[]): PolyEvent[] {
 }
 
 function getKoreaCategories(events: PolyEvent[]): Record<string, number> {
+    const now = new Date();
     const cats: Record<string, number> = {};
     events.forEach(e => {
+        // 활성 이벤트만 카운트 (종료되지 않은 것)
+        if (new Date(e.end_date) <= now || e.closed) return;
         const cat = inferCategory(e);
         cats[cat] = (cats[cat] || 0) + 1;
     });
