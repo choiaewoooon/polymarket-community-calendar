@@ -65,6 +65,22 @@ etl/            # Python ETL + 번역 파이프라인
 - `fix/*`: 버그 수정
 - `content/*`: 콘텐츠/문서 변경
 
+### 6. 배포 (필수 — 반드시 수행)
+
+> **⚠️ MANDATORY: 코드 변경 후 사용자가 배포/업데이트를 요청하면 아래 두 단계를 반드시 모두 실행할 것. Vercel은 git push를 자동 감지하지 못하므로 수동 트리거가 필수.**
+
+```bash
+# Step 1: Git 푸시
+git push origin master
+
+# Step 2: Vercel 수동 프로덕션 배포 (반드시 실행)
+vercel --prod
+```
+
+- `vercel --prod`를 빠뜨리면 **배포가 되지 않는다**
+- 배포 완료 후 출력되는 `Aliased:` URL을 사용자에게 전달할 것
+- 프로덕션 URL: https://polymarket-calender.vercel.app
+
 ---
 
 ## 에이전트 시스템
