@@ -338,7 +338,14 @@ function isKoreaRelated(event: PolyEvent): boolean {
     }
 
     // 영문 키워드는 영문 제목에서만 검색
-    return KOREA_KEYWORDS_EN.some(keyword => titleLower.includes(keyword));
+    // 짧은 키워드(4글자 이하)는 단어 경계 체크 (kia→Pezeshkian 오탐 방지)
+    return KOREA_KEYWORDS_EN.some(keyword => {
+        if (keyword.length <= 4) {
+            const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+            return regex.test(titleLower);
+        }
+        return titleLower.includes(keyword);
+    });
 }
 
 function showKoreaLoading(message: string): void {
