@@ -1,4 +1,4 @@
-import { supabaseClient, allEvents, isAdminMode, setAllEvents, setIsLoadingMore, setAllTags, setAllCategories } from './state.ts';
+import { supabaseClient, allEvents, isAdminMode, setAllEvents, setIsLoadingMore, setAllTags, setAllCategories, setKoreaEvents } from './state.ts';
 import { CACHE_KEY, CACHE_TIME_KEY, CACHE_DURATION } from './constants.ts';
 import { toKSTDateString, addDays, inferCategory } from './utils.ts';
 import type { PolyEvent } from './types.ts';
@@ -270,6 +270,146 @@ export async function loadMoreData(targetDate: string): Promise<void> {
     }
 
     setIsLoadingMore(false);
+}
+
+// ─── 한국 관련 데이터 로드 ───
+
+// 영문 제목(title)에서만 매칭하는 키워드
+// title_ko는 모든 이벤트의 한국어 번역이므로 '탄핵', '대통령' 등이 트럼프/젤렌스키에도 들어감
+const KOREA_KEYWORDS_EN = [
+    // 국가/지역
+    'korea', 'korean', 'south korea', 'north korea', 'dprk',
+    'pyongyang', 'seoul', 'busan', 'jeju',
+    // 정치 - 인물 (한국 관련만)
+    'yoon suk', 'yoon suk-yeol', 'yoon suk yeol',
+    'lee jae-myung', 'lee jae myung', 'lee jaemyung',
+    'han dong-hoon', 'han donghoon',
+    'kim jong', 'kim jong un', 'kim jong-un',
+    'people power party', 'democratic party of korea',
+    // 정치 - 기관/이슈
+    'national assembly of korea', 'korean constitutional court',
+    'korean unification', 'korean peninsula', 'dmz', 'denuclearization',
+    'korean election', 'korean president',
+    // 경제/금융
+    'kospi', 'kosdaq', 'krw', 'bank of korea',
+    'won dollar', 'won usd', 'korean won', 'usd/krw', 'usd-krw',
+    'ks11', 'kq11',
+    // 기업
+    'samsung', 'hyundai', 'sk hynix', 'sk group', 'lg electronics', 'lg energy',
+    'kakao', 'naver', 'coupang', 'celltrion', 'posco',
+    'kia', 'hanwha',
+    // 문화/엔터
+    'kimchi', 'kpop', 'k-pop', 'k-drama', 'kdrama', 'hallyu',
+    'bts', 'blackpink', 'squid game', 'netflix korea',
+    'korean wave', 'k-beauty',
+    // 스포츠 (한국 팀/리그)
+    'korean baseball', 'kbo', 'k league',
+    // 군사/안보
+    'korean missile', 'korean military', 'thaad korea',
+    'korean war', 'armistice',
+    // 김치 프리미엄 등
+    'kimchi premium',
+];
+
+const KOREA_TAGS = [
+    'South Korea', 'North Korea', 'Korea', 'Korean', 'KOSPI', 'KRX',
+    'Seoul', 'Yoon', 'Lee Jae-myung', 'Korean Won', 'Samsung',
+];
+
+const KOREA_CACHE_KEY = 'polymarket_korea_cache';
+const KOREA_CACHE_TIME_KEY = 'polymarket_korea_cache_time';
+
+function isKoreaRelated(event: PolyEvent): boolean {
+    // 영문 제목에서만 키워드 매칭 (title_ko는 번역이라 오탐 발생)
+    const titleLower = (event.title || '').toLowerCase();
+
+    // 태그 매칭
+    if (event.tags && event.tags.some(tag =>
+        KOREA_TAGS.some(kt => tag.toLowerCase().includes(kt.toLowerCase()))
+    )) {
+        return true;
+    }
+
+    // 영문 키워드는 영문 제목에서만 검색
+    return KOREA_KEYWORDS_EN.some(keyword => titleLower.includes(keyword));
+}
+
+export async function loadKoreaData(): Promise<void> {
+    console.log('🇰🇷 한국 관련 데이터 로드 시작');
+
+    if (!supabaseClient) {
+        console.log('⚠️ Supabase 없음 - 기존 데이터에서 한국 필터링');
+        setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
+        return;
+    }
+
+    // 캐시 체크
+    try {
+        const cachedData = localStorage.getItem(KOREA_CACHE_KEY);
+        const cacheTime = localStorage.getItem(KOREA_CACHE_TIME_KEY);
+
+        if (cachedData && cacheTime) {
+            const age = Date.now() - parseInt(cacheTime);
+            if (age < CACHE_DURATION) {
+                console.log('✅ 한국 데이터 캐시에서 로드');
+                setKoreaEvents(groupSimilarMarkets(JSON.parse(cachedData)));
+                return;
+            }
+        }
+    } catch (e) {
+        // 캐시 실패 시 무시
+    }
+
+    try {
+        const now = new Date().toISOString();
+        const PAGE_SIZE = 1000;
+        let allData: PolyEvent[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        // 한국 관련 데이터를 넓게 가져오기 (종료일 제한 없이, volume 최소 100, closed 제외)
+        while (hasMore) {
+            const { data, error } = await supabaseClient
+                .from('poly_events')
+                .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+                .gte('volume', 100)
+                .eq('hidden', false)
+                .eq('closed', false)
+                .order('volume', { ascending: false })
+                .range(offset, offset + PAGE_SIZE - 1);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                allData = allData.concat(data as PolyEvent[]);
+                offset += PAGE_SIZE;
+                hasMore = data.length === PAGE_SIZE;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        // 한국 관련 필터링
+        const koreaData = allData.filter(isKoreaRelated);
+        console.log(`✅ 한국 관련 데이터: ${koreaData.length}건 (전체 ${allData.length}건 중)`);
+
+        const grouped = groupSimilarMarkets(koreaData);
+        setKoreaEvents(grouped);
+
+        try {
+            localStorage.setItem(KOREA_CACHE_KEY, JSON.stringify(koreaData));
+            localStorage.setItem(KOREA_CACHE_TIME_KEY, Date.now().toString());
+        } catch (e) {
+            console.warn('⚠️ 한국 데이터 캐시 저장 실패');
+        }
+    } catch (error) {
+        console.error('❌ 한국 데이터 로드 실패:', error);
+        // 에러 시 캐시 클리어
+        localStorage.removeItem(KOREA_CACHE_KEY);
+        localStorage.removeItem(KOREA_CACHE_TIME_KEY);
+        // 폴백: 기존 allEvents에서 필터링
+        setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
+    }
 }
 
 function generateDemoData(): PolyEvent[] {

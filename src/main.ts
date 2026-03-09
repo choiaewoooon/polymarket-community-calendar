@@ -2,12 +2,14 @@ import { initSupabase } from './supabase.ts';
 import { initTheme, initDensity, toggleTheme, toggleDensity } from './theme.ts';
 import { initLanguage, translations, currentLang } from './i18n.ts';
 import { initQuickFilters, openFilterModal, closeFilterModal, setupFilterOptions, applyFilters, resetFilters, clearAllFilters, renderFilterTags, updateActiveFiltersDisplay } from './filters.ts';
-import { loadData, loadMoreData } from './data.ts';
+import { loadData, loadMoreData, loadKoreaData } from './data.ts';
 import { renderCalendar } from './render/index.ts';
+import { renderKoreaView, initKoreaSortListeners } from './render/koreaView.ts';
 import { initTooltip } from './render/tooltip.ts';
 import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
-import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents } from './state.ts';
+import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents } from './state.ts';
+import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
 
@@ -26,6 +28,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCalendar();
 
     initV2Admin();
+    initKoreaSortListeners();
+    initPageTabs();
 });
 
 function setupEventListeners(): void {
@@ -151,6 +155,58 @@ function setupEventListeners(): void {
             closeFilterModal();
         }
     });
+}
+
+// ─── 페이지 탭 전환 ───
+
+function initPageTabs(): void {
+    document.querySelectorAll('.page-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = (tab as HTMLElement).dataset.tab as PageTab;
+            if (tabName && tabName !== currentTab) {
+                switchTab(tabName);
+            }
+        });
+    });
+}
+
+async function switchTab(tab: PageTab): Promise<void> {
+    setCurrentTab(tab);
+
+    // 탭 버튼 활성화 상태
+    document.querySelectorAll('.page-tab').forEach(btn => {
+        btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
+    });
+
+    // 캘린더 관련 섹션들
+    const calendarSections = [
+        document.querySelector('.info-banner'),
+        document.querySelector('.toolbar'),
+        document.querySelector('.quick-filters'),
+        document.querySelector('.filters-row'),
+        document.querySelector('.week-section'),
+        document.querySelector('.calendar-overview-section'),
+    ];
+
+    const koreaSection = document.getElementById('koreaViewSection');
+
+    if (tab === 'calendar') {
+        calendarSections.forEach(el => {
+            if (el) (el as HTMLElement).style.display = '';
+        });
+        if (koreaSection) koreaSection.style.display = 'none';
+    } else if (tab === 'korea') {
+        calendarSections.forEach(el => {
+            if (el) (el as HTMLElement).style.display = 'none';
+        });
+        if (koreaSection) koreaSection.style.display = '';
+
+        // 한국 데이터 로드 (최초 1회)
+        if (koreaEvents.length === 0) {
+            await loadKoreaData();
+        }
+        renderKoreaView();
+    }
 }
 
 function handleRefresh(): void {

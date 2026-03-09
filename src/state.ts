@@ -28,6 +28,12 @@ export let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
 export let isAdminMode = false;
 export let v2EditingEventId: string | null = null;
 
+export type PageTab = 'calendar' | 'korea';
+export let currentTab: PageTab = 'calendar';
+export let koreaEvents: PolyEvent[] = [];
+export let koreaSort: 'endDate' | 'volume' | 'probability' = 'endDate';
+export let koreaSelectedCategory: string | null = null;
+
 // ─── Setters ───
 
 export function setSupabaseClient(client: SupabaseClient): void { supabaseClient = client; }
@@ -43,3 +49,7 @@ export function setTooltipElement(el: HTMLDivElement): void { tooltipElement = e
 export function setTooltipTimeout(t: ReturnType<typeof setTimeout> | null): void { tooltipTimeout = t; }
 export function setIsAdminMode(mode: boolean): void { isAdminMode = mode; }
 export function setV2EditingEventId(id: string | null): void { v2EditingEventId = id; }
+export function setCurrentTab(tab: PageTab): void { currentTab = tab; }
+export function setKoreaEvents(events: PolyEvent[]): void { koreaEvents = events; }
+export function setKoreaSort(sort: 'endDate' | 'volume' | 'probability'): void { koreaSort = sort; }
+export function setKoreaSelectedCategory(cat: string | null): void { koreaSelectedCategory = cat; }
