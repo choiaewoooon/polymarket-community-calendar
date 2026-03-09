@@ -279,13 +279,19 @@ export async function loadMoreData(targetDate: string): Promise<void> {
 const KOREA_KEYWORDS_EN = [
     // 국가/지역
     'korea', 'korean', 'south korea', 'north korea', 'dprk',
-    'pyongyang', 'seoul', 'busan', 'jeju',
+    'pyongyang', 'seoul', 'busan', 'jeju', 'incheon', 'daegu',
+    'gwangju', 'daejeon', 'ulsan', 'sejong',
+    'gyeonggi', 'gyeongsang', 'jeolla', 'chungcheong', 'gangwon', 'gangnam',
     // 정치 - 인물 (한국 관련만)
     'yoon suk', 'yoon suk-yeol', 'yoon suk yeol',
     'lee jae-myung', 'lee jae myung', 'lee jaemyung',
     'han dong-hoon', 'han donghoon',
     'kim jong', 'kim jong un', 'kim jong-un',
-    'people power party', 'democratic party of korea',
+    'kim dong-yeon', 'lee un-ju', 'yoo seong-min',
+    'ahn cheol-soo', 'na kyung-won', 'choo mi-ae',
+    'yeom tae-yeong', 'won hee-ryong', 'han jun-ho',
+    'yoo jeong-bok', 'yoon sang-hyun',
+    'people power party', 'democratic party of korea', 'reform party',
     // 정치 - 기관/이슈
     'national assembly of korea', 'korean constitutional court',
     'korean unification', 'korean peninsula', 'dmz', 'denuclearization',
@@ -302,8 +308,9 @@ const KOREA_KEYWORDS_EN = [
     'kimchi', 'kpop', 'k-pop', 'k-drama', 'kdrama', 'hallyu',
     'bts', 'blackpink', 'squid game', 'netflix korea',
     'korean wave', 'k-beauty',
-    // 스포츠 (한국 팀/리그)
+    // 스포츠 (한국 팀/리그/도시)
     'korean baseball', 'kbo', 'k league',
+    'gwangju fc', 'daegu pegasus',
     // 군사/안보
     'korean missile', 'korean military', 'thaad korea',
     'korean war', 'armistice',
