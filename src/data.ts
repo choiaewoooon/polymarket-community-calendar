@@ -334,6 +334,35 @@ function isKoreaRelated(event: PolyEvent): boolean {
     return KOREA_KEYWORDS_EN.some(keyword => titleLower.includes(keyword));
 }
 
+// 서버사이드 필터용 핵심 키워드 (Supabase OR 쿼리)
+const KOREA_SERVER_KEYWORDS = [
+    'korea', 'samsung', 'hyundai', 'yoon', 'kim jong',
+    'kospi', 'kosdaq', 'seoul', 'pyongyang', 'kpop', 'k-pop',
+    'bts', 'blackpink', 'squid game', 'kimchi',
+    'lee jae-myung', 'lee jae myung', 'han dong-hoon',
+    'naver', 'kakao', 'coupang', 'sk hynix', 'kia', 'posco',
+    'kbo', 'k league', 'hallyu', 'denuclearization', 'dmz',
+    'armistice', 'dprk', 'krw', 'hanwha', 'celltrion',
+    'won dollar', 'won usd', 'usd/krw',
+];
+
+function buildKoreaOrFilter(): string {
+    const titleFilters = KOREA_SERVER_KEYWORDS.map(kw => `title.ilike.%${kw}%`);
+    const tagFilters = KOREA_TAGS.map(tag => `tags.cs.{${tag}}`);
+    return [...titleFilters, ...tagFilters].join(',');
+}
+
+function showKoreaLoading(message: string): void {
+    const grid = document.getElementById('koreaCardsGrid');
+    if (!grid) return;
+    grid.innerHTML = `
+        <div class="korea-loading">
+            <div class="korea-loading-spinner"></div>
+            <div class="korea-loading-text">${message}</div>
+        </div>
+    `;
+}
+
 export async function loadKoreaData(): Promise<void> {
     console.log('🇰🇷 한국 관련 데이터 로드 시작');
 
@@ -360,38 +389,27 @@ export async function loadKoreaData(): Promise<void> {
         // 캐시 실패 시 무시
     }
 
+    showKoreaLoading('한국 관련 시장 검색 중...');
+
     try {
-        const now = new Date().toISOString();
-        const PAGE_SIZE = 1000;
-        let allData: PolyEvent[] = [];
-        let offset = 0;
-        let hasMore = true;
+        const orFilter = buildKoreaOrFilter();
 
-        // 한국 관련 데이터를 넓게 가져오기 (종료일 제한 없이, volume 최소 100, closed 제외)
-        while (hasMore) {
-            const { data, error } = await supabaseClient
-                .from('poly_events')
-                .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
-                .gte('volume', 100)
-                .eq('hidden', false)
-                .eq('closed', false)
-                .order('volume', { ascending: false })
-                .range(offset, offset + PAGE_SIZE - 1);
+        // 서버사이드 필터링: 한국 관련 키워드가 포함된 이벤트만 가져오기
+        const { data, error } = await supabaseClient
+            .from('poly_events')
+            .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+            .gte('volume', 100)
+            .eq('hidden', false)
+            .eq('closed', false)
+            .or(orFilter)
+            .order('volume', { ascending: false })
+            .limit(500);
 
-            if (error) throw error;
+        if (error) throw error;
 
-            if (data && data.length > 0) {
-                allData = allData.concat(data as PolyEvent[]);
-                offset += PAGE_SIZE;
-                hasMore = data.length === PAGE_SIZE;
-            } else {
-                hasMore = false;
-            }
-        }
-
-        // 한국 관련 필터링
-        const koreaData = allData.filter(isKoreaRelated);
-        console.log(`✅ 한국 관련 데이터: ${koreaData.length}건 (전체 ${allData.length}건 중)`);
+        // 클라이언트에서 한번 더 정밀 필터링 (서버 결과가 넓을 수 있으므로)
+        const koreaData = (data as PolyEvent[]).filter(isKoreaRelated);
+        console.log(`✅ 한국 관련 데이터: ${koreaData.length}건 (서버 응답 ${data?.length || 0}건)`);
 
         const grouped = groupSimilarMarkets(koreaData);
         setKoreaEvents(grouped);
@@ -403,12 +421,65 @@ export async function loadKoreaData(): Promise<void> {
             console.warn('⚠️ 한국 데이터 캐시 저장 실패');
         }
     } catch (error) {
-        console.error('❌ 한국 데이터 로드 실패:', error);
-        // 에러 시 캐시 클리어
-        localStorage.removeItem(KOREA_CACHE_KEY);
-        localStorage.removeItem(KOREA_CACHE_TIME_KEY);
-        // 폴백: 기존 allEvents에서 필터링
-        setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
+        console.error('❌ 한국 데이터 서버 필터링 실패, 폴백 시도:', error);
+        // 폴백: 기존 방식 (전체 로드 후 필터)
+        showKoreaLoading('데이터 로드 중... (대체 방식)');
+        try {
+            await loadKoreaDataFallback();
+        } catch (fallbackError) {
+            console.error('❌ 폴백도 실패:', fallbackError);
+            localStorage.removeItem(KOREA_CACHE_KEY);
+            localStorage.removeItem(KOREA_CACHE_TIME_KEY);
+            setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
+        }
+    }
+}
+
+// 폴백: 서버사이드 필터링 실패 시 기존 방식
+async function loadKoreaDataFallback(): Promise<void> {
+    if (!supabaseClient) return;
+
+    const PAGE_SIZE = 1000;
+    let allData: PolyEvent[] = [];
+    let offset = 0;
+    let hasMore = true;
+    let page = 0;
+
+    while (hasMore) {
+        page++;
+        showKoreaLoading(`데이터 로드 중... (${allData.length.toLocaleString()}건 수신)`);
+
+        const { data, error } = await supabaseClient
+            .from('poly_events')
+            .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+            .gte('volume', 100)
+            .eq('hidden', false)
+            .eq('closed', false)
+            .order('volume', { ascending: false })
+            .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            allData = allData.concat(data as PolyEvent[]);
+            offset += PAGE_SIZE;
+            hasMore = data.length === PAGE_SIZE;
+        } else {
+            hasMore = false;
+        }
+    }
+
+    const koreaData = allData.filter(isKoreaRelated);
+    console.log(`✅ 한국 관련 데이터 (폴백): ${koreaData.length}건 (전체 ${allData.length}건)`);
+
+    const grouped = groupSimilarMarkets(koreaData);
+    setKoreaEvents(grouped);
+
+    try {
+        localStorage.setItem(KOREA_CACHE_KEY, JSON.stringify(koreaData));
+        localStorage.setItem(KOREA_CACHE_TIME_KEY, Date.now().toString());
+    } catch (e) {
+        console.warn('⚠️ 한국 데이터 캐시 저장 실패');
     }
 }
 
