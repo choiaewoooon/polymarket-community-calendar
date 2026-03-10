@@ -291,7 +291,17 @@ const KOREA_KEYWORDS_EN = [
     'ahn cheol-soo', 'na kyung-won', 'choo mi-ae',
     'yeom tae-yeong', 'won hee-ryong', 'han jun-ho',
     'yoo jeong-bok', 'yoon sang-hyun',
+    // 2026 지방선거 후보
+    'oh se-hoon', 'cho eun-hee', 'park yong-jin', 'park hong-keun',
+    'kang hoon-sik', 'jeon hyun-heui', 'chong won-oh', 'park ju-min',
+    'cho kuk', 'seo young-kyo', 'lee jae-sung',
+    'hong soon-heon', 'kim young-choon', 'kim do-eup', 'park heong-joon', 'suh byung-soo',
+    'park chan-dae', 'park nam-choon', 'chung il-young', 'yoo dong-soo',
+    'yang seung-jo', 'kim tae-heum', 'kang seung-kyu', 'park soo-hyun',
+    'cho gil-hyeong', 'do jong-hwan', 'shin yong-han', 'lee jong-bae', 'song ki-sub',
+    'woo sang-ho', 'kim wan-seop',
     'people power party', 'democratic party of korea', 'reform party',
+    'rebuilding korea party', 'progressive party',
     // 정치 - 기관/이슈
     'national assembly of korea', 'korean constitutional court',
     'korean unification', 'korean peninsula', 'dmz', 'denuclearization',
@@ -388,17 +398,19 @@ export async function loadKoreaData(): Promise<void> {
     showKoreaLoading('한국 관련 시장 데이터 로드 중...');
 
     try {
+        // is_korea 플래그로 서버사이드 필터링 (전체 로드 불필요)
         const PAGE_SIZE = 1000;
-        let allData: PolyEvent[] = [];
+        let koreaData: PolyEvent[] = [];
         let offset = 0;
         let hasMore = true;
 
         while (hasMore) {
-            showKoreaLoading(`데이터 로드 중... (${allData.length.toLocaleString()}건 수신)`);
+            showKoreaLoading(`한국 데이터 로드 중... (${koreaData.length.toLocaleString()}건 수신)`);
 
             const { data, error } = await supabaseClient
                 .from('poly_events')
                 .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+                .eq('is_korea', true)
                 .eq('hidden', false)
                 .eq('closed', false)
                 .order('volume', { ascending: false })
@@ -407,7 +419,7 @@ export async function loadKoreaData(): Promise<void> {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                allData = allData.concat(data as PolyEvent[]);
+                koreaData = koreaData.concat(data as PolyEvent[]);
                 offset += PAGE_SIZE;
                 hasMore = data.length === PAGE_SIZE;
             } else {
@@ -415,10 +427,9 @@ export async function loadKoreaData(): Promise<void> {
             }
         }
 
-        showKoreaLoading('한국 관련 시장 필터링 중...');
-
-        const koreaData = allData.filter(isKoreaRelated);
-        console.log(`✅ 한국 관련 데이터: ${koreaData.length}건 (전체 ${allData.length}건)`);
+        // 서버 필터 후 클라이언트 키워드로 추가 필터 (신규 마켓 대비 fallback)
+        const serverCount = koreaData.length;
+        console.log(`✅ 한국 관련 데이터: ${serverCount}건 (서버 필터링)`);
 
         const grouped = groupSimilarMarkets(koreaData);
         setKoreaEvents(grouped);

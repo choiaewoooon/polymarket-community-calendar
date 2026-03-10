@@ -105,6 +105,16 @@ def infer_category_from_title(title: str, category: Optional[str], tags: list = 
 
     title_lower = search_text
 
+    # ── 선거/정치 우선 분류 (Sports의 'win' 키워드보다 먼저 체크) ──
+    election_keywords = [
+        'election', 'mayoral', 'gubernatorial', 'presidential',
+        'parliamentary', 'by-election', 'local elections',
+        'senator', 'congressman', 'prime minister',
+        'impeach', 'inaugurate', 'sworn in',
+    ]
+    if any(keyword in title_lower for keyword in election_keywords):
+        return 'Politics'
+
     # Sports 키워드 (대폭 확장)
     sports_keywords = [
         # 기존 키워드
@@ -244,6 +254,53 @@ def infer_category_from_title(title: str, category: Optional[str], tags: list = 
     return 'Uncategorized'
 
 
+def is_korea_related(title: str, tags: list = None) -> bool:
+    """한국 관련 마켓인지 판별"""
+    title_lower = (title or '').lower()
+
+    korea_keywords = [
+        # 국가/지역
+        'korea', 'korean', 'south korea', 'north korea', 'dprk',
+        'pyongyang', 'seoul', 'busan', 'jeju', 'incheon', 'daegu',
+        'gwangju', 'daejeon', 'ulsan', 'sejong',
+        'gyeonggi', 'gyeongsang', 'jeolla', 'chungcheong', 'gangwon',
+        # 정치 인물
+        'yoon suk', 'lee jae-myung', 'lee jae myung', 'lee jaemyung',
+        'han dong-hoon', 'han donghoon', 'kim jong',
+        'ahn cheol-soo', 'na kyung-won', 'choo mi-ae', 'cho kuk',
+        'kim dong-yeon', 'yoo seong-min', 'oh se-hoon', 'cho eun-hee',
+        'park yong-jin', 'park hong-keun',
+        'people power party', 'democratic party of korea',
+        'rebuilding korea party', 'progressive party',
+        # 경제
+        'kospi', 'kosdaq', 'bank of korea', 'korean won', 'usd/krw',
+        # 기업
+        'samsung', 'hyundai', 'sk hynix', 'kakao', 'naver', 'coupang',
+        'celltrion', 'posco', 'hanwha',
+        # 문화
+        'kimchi premium', 'k-pop', 'kpop', 'squid game',
+    ]
+
+    # 짧은 키워드(4글자 이하)는 단어 경계 체크
+    import re
+    for kw in korea_keywords:
+        if len(kw) <= 4:
+            if re.search(rf'\b{re.escape(kw)}\b', title_lower):
+                return True
+        else:
+            if kw in title_lower:
+                return True
+
+    # 태그 매칭
+    korea_tags = {'south korea', 'north korea', 'korea', 'korean', 'kospi', 'krx', 'seoul'}
+    if tags:
+        for tag in tags:
+            if isinstance(tag, str) and tag.lower() in korea_tags:
+                return True
+
+    return False
+
+
 def transform_data(raw_data: list[dict]) -> list[dict]:
     """API 응답 데이터를 DB 스키마에 맞게 변환 (필터 없이 전체)"""
     transformed = []
@@ -292,6 +349,7 @@ def transform_data(raw_data: list[dict]) -> list[dict]:
             "image_url": item.get("image"),
             "closed": item.get("closed", False),  # 정산 여부
             "description": item.get("description"),  # Rules/설명 텍스트
+            "is_korea": is_korea_related(item.get("question", ""), tags),
         }
 
         # id가 없는 레코드는 건너뛰기
