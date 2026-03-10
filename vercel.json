@@ -6,6 +6,14 @@
     {
       "source": "/api/gamma/:path*",
       "destination": "https://gamma-api.polymarket.com/:path*"
+    },
+    {
+      "source": "/99market",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/komarket",
+      "destination": "/index.html"
     }
   ]
 }

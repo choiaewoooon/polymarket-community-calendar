@@ -38,6 +38,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     initKoreaSortListeners();
     initSureBetListeners();
     initPageTabs();
+
+    // URL 기반 초기 탭 설정
+    const initialTab = getTabFromPath();
+    if (initialTab !== 'calendar') {
+        await switchTab(initialTab);
+    }
+
+    // 브라우저 뒤로/앞으로 버튼 처리
+    window.addEventListener('popstate', () => {
+        const tab = getTabFromPath();
+        if (tab !== currentTab) {
+            switchTab(tab, false);
+        }
+    });
 });
 
 function setupEventListeners(): void {
@@ -165,6 +179,24 @@ function setupEventListeners(): void {
     });
 }
 
+// ─── URL 라우팅 ───
+
+const ROUTE_MAP: Record<string, PageTab> = {
+    '/99market': 'surebet',
+    '/komarket': 'korea',
+};
+
+const TAB_TO_PATH: Record<PageTab, string> = {
+    calendar: '/',
+    surebet: '/99market',
+    korea: '/komarket',
+};
+
+function getTabFromPath(): PageTab {
+    const path = window.location.pathname;
+    return ROUTE_MAP[path] || 'calendar';
+}
+
 // ─── 페이지 탭 전환 ───
 
 function initPageTabs(): void {
@@ -178,8 +210,14 @@ function initPageTabs(): void {
     });
 }
 
-async function switchTab(tab: PageTab): Promise<void> {
+async function switchTab(tab: PageTab, pushState = true): Promise<void> {
     setCurrentTab(tab);
+
+    // URL 업데이트 (pushState=false일 때는 popstate에서 호출된 경우)
+    const targetPath = TAB_TO_PATH[tab];
+    if (pushState && window.location.pathname !== targetPath) {
+        history.pushState({ tab }, '', targetPath);
+    }
 
     // 탭 버튼 활성화 상태
     document.querySelectorAll('.page-tab').forEach(btn => {
