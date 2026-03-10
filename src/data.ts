@@ -333,8 +333,8 @@ const KOREA_TAGS = [
     'Seoul', 'Yoon', 'Lee Jae-myung', 'Korean Won', 'Samsung',
 ];
 
-const KOREA_CACHE_KEY = 'polymarket_korea_cache';
-const KOREA_CACHE_TIME_KEY = 'polymarket_korea_cache_time';
+const KOREA_CACHE_KEY = 'polymarket_korea_cache_v2';  // v2: is_korea 서버 필터링
+const KOREA_CACHE_TIME_KEY = 'polymarket_korea_cache_time_v2';
 
 function isKoreaRelated(event: PolyEvent): boolean {
     // 영문 제목에서만 키워드 매칭 (title_ko는 번역이라 오탐 발생)
