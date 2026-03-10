@@ -115,6 +115,15 @@ def infer_category_from_title(title: str, category: Optional[str], tags: list = 
     if any(keyword in title_lower for keyword in election_keywords):
         return 'Politics'
 
+    # ── 금융 우선 분류 (Crypto의 'base', 'exchange' 키워드보다 먼저 체크) ──
+    finance_priority_keywords = [
+        'base rate', 'interest rate', 'central bank', 'bank of korea',
+        'exchange rate', 'federal reserve', 'rate cut', 'rate hike',
+        'gdp', 'inflation rate', 'unemployment rate',
+    ]
+    if any(keyword in title_lower for keyword in finance_priority_keywords):
+        return 'Finance'
+
     # Sports 키워드 (대폭 확장)
     sports_keywords = [
         # 기존 키워드
