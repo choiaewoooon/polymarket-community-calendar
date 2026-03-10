@@ -1,4 +1,4 @@
-import { supabaseClient, allEvents, isAdminMode, setAllEvents, setIsLoadingMore, setAllTags, setAllCategories, setKoreaEvents } from './state.ts';
+import { supabaseClient, allEvents, isAdminMode, setAllEvents, setIsLoadingMore, setAllTags, setAllCategories, setKoreaEvents, setSureBetEvents, setSureBetLastUpdate, setSureBetIsRefreshing, setSureBetRefreshInterval, sureBetRefreshInterval, sureBetIsRefreshing } from './state.ts';
 import { CACHE_KEY, CACHE_TIME_KEY, CACHE_DURATION } from './constants.ts';
 import { toKSTDateString, addDays, inferCategory } from './utils.ts';
 import type { PolyEvent } from './types.ts';
@@ -86,115 +86,191 @@ export function extractCategories(): void {
 
 // ─── 데이터 로드 ───
 
-export async function loadData(): Promise<void> {
+// SWR: 캐시 최대 허용 시간 (30분 이내면 stale 캐시라도 즉시 표시)
+const STALE_CACHE_MAX = 30 * 60 * 1000;
+
+// 서버에서 데이터를 가져오는 핵심 함수 (재사용)
+async function fetchFromServer(): Promise<PolyEvent[] | null> {
+    if (!supabaseClient) return null;
+
+    const PAGE_SIZE = 1000;
+    const now = new Date().toISOString();
+    const upcomingWeeks = new Date();
+    upcomingWeeks.setDate(upcomingWeeks.getDate() + 5 + 21);
+    const maxDate = upcomingWeeks.toISOString();
+
+    const CONCURRENT = 2;
+    let allData: PolyEvent[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    const fetchPage = (off: number) => supabaseClient!
+        .from('poly_events')
+        .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+        .gte('end_date', now)
+        .lte('end_date', maxDate)
+        .gte('volume', 1000)
+        .eq('hidden', false)
+        .order('end_date', { ascending: true })
+        .range(off, off + PAGE_SIZE - 1);
+
+    while (hasMore) {
+        const batch = [];
+        for (let i = 0; i < CONCURRENT; i++) {
+            batch.push(fetchPage(offset + i * PAGE_SIZE));
+        }
+
+        const results = await Promise.all(batch);
+        let batchCount = 0;
+
+        for (const result of results) {
+            if (result.error) throw result.error;
+            if (result.data && result.data.length > 0) {
+                allData = allData.concat(result.data as PolyEvent[]);
+                batchCount += result.data.length;
+            }
+        }
+
+        console.log(`📦 ${allData.length}건 로드됨...`);
+        offset += CONCURRENT * PAGE_SIZE;
+        hasMore = batchCount >= CONCURRENT * PAGE_SIZE;
+    }
+
+    return allData;
+}
+
+// 캐시 저장 헬퍼
+function saveToCache(data: PolyEvent[]): void {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+        console.log('💾 캐시에 저장 완료');
+    } catch (e) {
+        console.warn('⚠️ 캐시 저장 실패 (용량 초과 가능성):', e);
+    }
+}
+
+// 데이터를 상태에 적용하는 헬퍼
+function applyData(data: PolyEvent[]): void {
+    setAllEvents(groupSimilarMarkets(data));
+    extractTags();
+    extractCategories();
+}
+
+// 백그라운드 리밸리데이션 (SWR 핵심)
+function revalidateInBackground(onUpdate: (() => void) | null): void {
+    if (!supabaseClient) return;
+
+    const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
+    const cacheTimestamp = cacheTime ? parseInt(cacheTime) : 0;
+    const age = Date.now() - cacheTimestamp;
+
+    // 캐시가 5분 이내이면 cache_meta만 확인 (가벼운 체크)
+    if (age < CACHE_DURATION) {
+        Promise.resolve(
+            supabaseClient
+                .from('cache_meta')
+                .select('last_updated')
+                .eq('id', 1)
+                .single()
+        )
+            .then(({ data: meta }) => {
+                if (meta && new Date(meta.last_updated).getTime() > cacheTimestamp) {
+                    console.log('⚠️ 관리자 수정 감지, 백그라운드 갱신 시작');
+                    fetchAndUpdate(onUpdate);
+                } else {
+                    console.log('✅ 캐시 유효 (cache_meta 확인 완료)');
+                }
+            })
+            .catch(() => {
+                // cache_meta 조회 실패 시 무시
+            });
+    } else {
+        // 캐시 만료 → 서버에서 새로 가져오기
+        console.log('🔄 캐시 만료, 백그라운드 갱신 시작');
+        fetchAndUpdate(onUpdate);
+    }
+}
+
+// 서버에서 데이터를 가져와 업데이트하는 함수
+async function fetchAndUpdate(onUpdate: (() => void) | null): Promise<void> {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [1000, 2000, 4000];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const freshData = await fetchFromServer();
+            if (freshData) {
+                console.log('✅ 백그라운드 갱신 완료:', freshData.length, '건');
+                applyData(freshData);
+                saveToCache(freshData);
+                if (onUpdate) onUpdate();
+            }
+            return;
+        } catch (error) {
+            if (attempt < MAX_RETRIES) {
+                const delay = RETRY_DELAYS[attempt];
+                console.warn(`⚠️ 백그라운드 갱신 실패 (${attempt + 1}/${MAX_RETRIES}), ${delay / 1000}초 후 재시도...`, error);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.error('❌ 백그라운드 갱신 최종 실패:', error);
+            }
+        }
+    }
+}
+
+/**
+ * SWR 기반 데이터 로드
+ * - 캐시 있으면: 즉시 표시 → 백그라운드 갱신
+ * - 캐시 없으면: 서버에서 직접 로드
+ * @param onBackgroundUpdate 백그라운드 갱신 완료 시 호출할 콜백 (re-render용)
+ */
+export async function loadData(onBackgroundUpdate: (() => void) | null = null): Promise<void> {
     console.log('📥 데이터 로드 시작');
 
     if (!supabaseClient) {
         console.log('⚠️ Supabase 없음 - 데모 데이터 사용');
-        setAllEvents(groupSimilarMarkets(generateDemoData()));
-        extractTags();
-        extractCategories();
+        applyData(generateDemoData());
         return;
     }
 
+    // Phase 1: 캐시에서 즉시 로드 시도
     try {
         const cachedData = localStorage.getItem(CACHE_KEY);
         const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
 
         if (cachedData && cacheTime) {
             const age = Date.now() - parseInt(cacheTime);
-            if (age < CACHE_DURATION) {
-                let cacheValid = true;
-                try {
-                    const { data: meta } = await supabaseClient
-                        .from('cache_meta')
-                        .select('last_updated')
-                        .eq('id', 1)
-                        .single();
-                    if (meta && new Date(meta.last_updated).getTime() > parseInt(cacheTime)) {
-                        console.log('⚠️ 관리자 수정 감지, 캐시 무효화');
-                        cacheValid = false;
-                    }
-                } catch (e) {
-                    // cache_meta 조회 실패 시 캐시 그대로 사용
-                }
 
-                if (cacheValid) {
-                    console.log('✅ 캐시에서 로드 (', Math.round(age / 1000), '초 전)');
-                    setAllEvents(groupSimilarMarkets(JSON.parse(cachedData)));
-                    extractTags();
-                    extractCategories();
-                    return;
-                }
+            if (age < STALE_CACHE_MAX) {
+                console.log(`⚡ 캐시에서 즉시 로드 (${Math.round(age / 1000)}초 전)`);
+                applyData(JSON.parse(cachedData));
+
+                // Phase 2: 백그라운드에서 최신 데이터 확인/갱신
+                revalidateInBackground(onBackgroundUpdate);
+                return;
             } else {
-                console.log('⚠️ 캐시 만료됨, 새로 로드');
+                console.log('⚠️ 캐시 너무 오래됨 (30분+), 새로 로드');
             }
         }
     } catch (e) {
         console.log('⚠️ 캐시 로드 실패, 새로 로드');
     }
 
+    // Phase 3: 캐시 없음 - 서버에서 직접 로드 (로딩 표시)
+    showCalendarLoading();
+
     const MAX_RETRIES = 3;
     const RETRY_DELAYS = [1000, 2000, 4000];
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-            const PAGE_SIZE = 1000;
-            const now = new Date().toISOString();
-            const upcomingWeeks = new Date();
-            upcomingWeeks.setDate(upcomingWeeks.getDate() + 5 + 21);
-            const maxDate = upcomingWeeks.toISOString();
-
-            const CONCURRENT = 2;
-            let allData: PolyEvent[] = [];
-            let offset = 0;
-            let hasMore = true;
-
-            const fetchPage = (off: number) => supabaseClient!
-                .from('poly_events')
-                .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
-                .gte('end_date', now)
-                .lte('end_date', maxDate)
-                .gte('volume', 1000)
-                .eq('hidden', false)
-                .order('end_date', { ascending: true })
-                .range(off, off + PAGE_SIZE - 1);
-
-            while (hasMore) {
-                const batch = [];
-                for (let i = 0; i < CONCURRENT; i++) {
-                    batch.push(fetchPage(offset + i * PAGE_SIZE));
-                }
-
-                const results = await Promise.all(batch);
-                let batchCount = 0;
-
-                for (const result of results) {
-                    if (result.error) throw result.error;
-                    if (result.data && result.data.length > 0) {
-                        allData = allData.concat(result.data as PolyEvent[]);
-                        batchCount += result.data.length;
-                    }
-                }
-
-                console.log(`📦 ${allData.length}건 로드됨...`);
-                offset += CONCURRENT * PAGE_SIZE;
-                hasMore = batchCount >= CONCURRENT * PAGE_SIZE;
+            const freshData = await fetchFromServer();
+            if (freshData) {
+                console.log('✅ 데이터 로드 성공:', freshData.length, '건');
+                applyData(freshData);
+                saveToCache(freshData);
             }
-
-            console.log('✅ 데이터 로드 성공:', allData.length, '건');
-            setAllEvents(groupSimilarMarkets(allData));
-
-            try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify(allEvents));
-                localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-                console.log('💾 캐시에 저장 완료');
-            } catch (e) {
-                console.warn('⚠️ 캐시 저장 실패 (용량 초과 가능성):', e);
-            }
-
-            extractTags();
-            extractCategories();
             return;
         } catch (error) {
             if (attempt < MAX_RETRIES) {
@@ -203,10 +279,31 @@ export async function loadData(): Promise<void> {
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
                 console.error('❌ 데이터 로드 최종 실패 (재시도 모두 소진):', error);
-                setAllEvents(groupSimilarMarkets(generateDemoData()));
-                extractTags();
+                applyData(generateDemoData());
             }
         }
+    }
+}
+
+// 캘린더 로딩 표시 (첫 방문 시)
+function showCalendarLoading(): void {
+    const weekTimeline = document.getElementById('weekTimeline');
+    if (weekTimeline) {
+        weekTimeline.innerHTML = `
+            <div class="korea-loading">
+                <div class="korea-loading-spinner"></div>
+                <div class="korea-loading-text">데이터 로드 중...</div>
+            </div>
+        `;
+    }
+    const calendarDays = document.getElementById('calendarOverviewDays');
+    if (calendarDays) {
+        calendarDays.innerHTML = `
+            <div class="korea-loading" style="grid-column: 1 / -1;">
+                <div class="korea-loading-spinner"></div>
+                <div class="korea-loading-text">캘린더 데이터 로드 중...</div>
+            </div>
+        `;
     }
 }
 
@@ -445,6 +542,243 @@ export async function loadKoreaData(): Promise<void> {
         localStorage.removeItem(KOREA_CACHE_KEY);
         localStorage.removeItem(KOREA_CACHE_TIME_KEY);
         setKoreaEvents(groupSimilarMarkets(allEvents.filter(isKoreaRelated)));
+    }
+}
+
+// ─── 99% 마켓 (Sure Bet) — Polymarket Gamma API 실시간 ───
+
+const GAMMA_API_BASE = '/api/gamma';
+const SUREBET_REFRESH_INTERVAL = 10_000; // 10초
+
+function showSureBetLoading(message: string): void {
+    const grid = document.getElementById('sureBetCardsGrid');
+    if (!grid) return;
+    grid.innerHTML = `
+        <div class="korea-loading">
+            <div class="korea-loading-spinner"></div>
+            <div class="korea-loading-text">${message}</div>
+        </div>
+    `;
+}
+
+// Gamma API 응답 → PolyEvent 변환
+function inferCategoryFromQuestion(question: string): string {
+    const q = question.toLowerCase();
+    if (/\b(nfl|nba|mlb|nhl|soccer|football|baseball|basketball|tennis|golf|ufc|boxing|f1|formula|premier league|champions league|world cup|olympics|pga|atp|wta|mls|serie a|la liga|bundesliga|ligue 1|kbo|k league|ncaa|ipl|cricket|rugby|grand prix|super bowl|playoff|match|game score|win.*season)\b/.test(q)) return 'Sports';
+    if (/\b(bitcoin|btc|ethereum|eth|crypto|solana|sol|token|blockchain|defi|nft|altcoin|memecoin|doge|xrp|cardano|polkadot|avalanche|polygon|arbitrum|base chain|binance)\b/.test(q)) return 'Crypto';
+    if (/\b(president|election|congress|senate|vote|party|political|governor|mayor|democrat|republican|trump|biden|parliament|minister|referendum|impeach|primary|caucus|poll)\b/.test(q)) return 'Politics';
+    if (/\b(stock|market|s&p|nasdaq|dow|gdp|inflation|fed|interest rate|tariff|trade|treasury|bond|yield|recession|unemployment|cpi|fomc|oil price|gold price|forex)\b/.test(q)) return 'Finance';
+    if (/\b(movie|film|tv|show|oscar|grammy|emmy|celebrity|album|song|music|artist|concert|netflix|disney|spotify|billboard|box office|streaming|tikto[kc]|youtube|instagram)\b/.test(q)) return 'Pop Culture';
+    if (/\b(ai\b|artificial intelligence|tech|apple|google|microsoft|meta|amazon|startup|software|hardware|chip|semiconductor|robot|openai|chatgpt|tesla)\b/.test(q)) return 'Technology';
+    if (/\b(science|nasa|space|spacex|climate|research|study|disease|virus|vaccine|fda|drug|trial|weather|earthquake|hurricane|temperature)\b/.test(q)) return 'Science';
+    return 'Uncategorized';
+}
+
+interface GammaMarket {
+    id: string;
+    question: string;
+    slug: string;
+    endDate: string;
+    volume: string;
+    volumeNum: number;
+    volume24hr: number;
+    outcomePrices: string[] | string;
+    outcomes: string[] | string;
+    closed: boolean;
+    active: boolean;
+    image: string;
+    liquidity: string;
+    liquidityNum: number;
+    bestBid: number;
+    bestAsk: number;
+    lastTradePrice: number;
+    spread: number;
+    events: Array<{ slug: string; title: string }>;
+    description: string;
+}
+
+function gammaToPolyEvent(m: GammaMarket): PolyEvent | null {
+    // outcomePrices 파싱 (배열 또는 JSON 문자열)
+    let prices: number[];
+    try {
+        const raw = typeof m.outcomePrices === 'string'
+            ? JSON.parse(m.outcomePrices)
+            : m.outcomePrices;
+        prices = (raw as string[]).map((p: string) => parseFloat(p));
+    } catch {
+        return null;
+    }
+
+    if (!prices.length || prices.some(isNaN)) return null;
+
+    // 종료 여부 확인 (API closed 플래그 + 날짜 체크)
+    const endDate = new Date(m.endDate);
+    if (isNaN(endDate.getTime())) return null;
+    if (endDate.getTime() <= Date.now()) return null;
+    if (m.closed || !m.active) return null;
+
+    const volume = m.volumeNum || parseFloat(m.volume) || 0;
+    if (volume < 5000) return null;
+
+    // 유동성 최소 $1,000 (호가 없는 마켓 제거)
+    const liquidity = m.liquidityNum || parseFloat(m.liquidity) || 0;
+    if (liquidity < 1000) return null;
+
+    // 90%+ 확률 필터
+    const maxProb = Math.max(...prices);
+    if (maxProb < 0.9) return null;
+
+    // 스프레드 계산 (bestBid/bestAsk가 0이면 거래 불가)
+    const bestBid = m.bestBid || 0;
+    const bestAsk = m.bestAsk || 0;
+    const spread = m.spread || (bestAsk > 0 && bestBid > 0 ? bestAsk - bestBid : 0);
+
+    // bestBid와 bestAsk 모두 0이면 호가 없음 → 제거
+    if (bestBid === 0 && bestAsk === 0) return null;
+
+    const eventSlug = m.events?.[0]?.slug || '';
+    const category = inferCategoryFromQuestion(m.question);
+
+    return {
+        id: m.id,
+        title: m.question,
+        slug: m.slug,
+        event_slug: eventSlug,
+        end_date: m.endDate,
+        volume: volume,
+        volume_24hr: m.volume24hr || 0,
+        probs: prices,
+        category: category,
+        closed: false,
+        image_url: m.image || null,
+        liquidity: liquidity,
+        bestBid: bestBid,
+        bestAsk: bestAsk,
+        spread: spread,
+    };
+}
+
+async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
+    const PAGE_SIZE = 100;
+    let allMarkets: PolyEvent[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+        const url = `${GAMMA_API_BASE}/markets?closed=false&active=true&limit=${PAGE_SIZE}&offset=${offset}&order=volume&ascending=false`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Gamma API ${response.status}: ${response.statusText}`);
+
+        const markets: GammaMarket[] = await response.json();
+        if (!markets || markets.length === 0) {
+            hasMore = false;
+            break;
+        }
+
+        for (const m of markets) {
+            const event = gammaToPolyEvent(m);
+            if (event) allMarkets.push(event);
+        }
+
+        offset += PAGE_SIZE;
+        hasMore = markets.length === PAGE_SIZE;
+
+        // 최대 2000개까지만 (안전장치)
+        if (offset >= 2000) break;
+    }
+
+    return allMarkets;
+}
+
+export async function loadSureBetData(): Promise<void> {
+    console.log('💰 99% 마켓 데이터 로드 시작 (Gamma API)');
+    showSureBetLoading('Polymarket 실시간 데이터 로드 중...');
+
+    try {
+        const markets = await fetchFromGammaAPI();
+        console.log(`✅ 99% 마켓: ${markets.length}건 로드 (Gamma API)`);
+        setSureBetEvents(markets);
+        setSureBetLastUpdate(Date.now());
+    } catch (error) {
+        console.error('❌ Gamma API 실패, Supabase fallback:', error);
+        // Supabase fallback
+        await loadSureBetFromSupabase();
+    }
+}
+
+// Supabase fallback (API 실패 시)
+async function loadSureBetFromSupabase(): Promise<void> {
+    if (!supabaseClient) {
+        const filtered = allEvents.filter(e => {
+            const maxProb = Math.max(...(e.probs || []).map(p => parseFloat(String(p))));
+            return maxProb >= 0.9 && !e.closed && new Date(e.end_date) > new Date();
+        });
+        setSureBetEvents(filtered);
+        return;
+    }
+
+    try {
+        const now = new Date().toISOString();
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + 90);
+
+        const { data, error } = await supabaseClient
+            .from('poly_events')
+            .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+            .eq('hidden', false)
+            .eq('closed', false)
+            .gte('end_date', now)
+            .lte('end_date', maxDate.toISOString())
+            .gte('volume', 5000)
+            .order('end_date', { ascending: true })
+            .limit(1000);
+
+        if (error) throw error;
+
+        const filtered = ((data || []) as PolyEvent[]).filter(e => {
+            if (!e.probs || !Array.isArray(e.probs)) return false;
+            const maxProb = Math.max(...e.probs.map(p => parseFloat(String(p))));
+            return maxProb >= 0.9;
+        });
+
+        setSureBetEvents(filtered);
+        setSureBetLastUpdate(Date.now());
+    } catch (err) {
+        console.error('❌ Supabase fallback도 실패:', err);
+        setSureBetEvents([]);
+    }
+}
+
+// 자동 갱신 (10초 간격)
+export async function refreshSureBetData(onUpdate: () => void): Promise<void> {
+    if (sureBetIsRefreshing) return;
+    setSureBetIsRefreshing(true);
+
+    try {
+        const markets = await fetchFromGammaAPI();
+        setSureBetEvents(markets);
+        setSureBetLastUpdate(Date.now());
+        onUpdate();
+        console.log(`🔄 99% 마켓 갱신: ${markets.length}건`);
+    } catch (error) {
+        console.warn('⚠️ 99% 마켓 갱신 실패:', error);
+    } finally {
+        setSureBetIsRefreshing(false);
+    }
+}
+
+export function startSureBetRefresh(onUpdate: () => void): void {
+    stopSureBetRefresh();
+    const id = setInterval(() => refreshSureBetData(onUpdate), SUREBET_REFRESH_INTERVAL);
+    setSureBetRefreshInterval(id);
+    console.log('▶️ 99% 마켓 자동 갱신 시작 (10초 간격)');
+}
+
+export function stopSureBetRefresh(): void {
+    if (sureBetRefreshInterval) {
+        clearInterval(sureBetRefreshInterval);
+        setSureBetRefreshInterval(null);
+        console.log('⏹️ 99% 마켓 자동 갱신 중지');
     }
 }
 

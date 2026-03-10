@@ -10,4 +10,13 @@ export default defineConfig({
             },
         },
     },
+    server: {
+        proxy: {
+            '/api/gamma': {
+                target: 'https://gamma-api.polymarket.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/gamma/, ''),
+            },
+        },
+    },
 });

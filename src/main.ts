@@ -2,13 +2,14 @@ import { initSupabase } from './supabase.ts';
 import { initTheme, initDensity, toggleTheme, toggleDensity } from './theme.ts';
 import { initLanguage, translations, currentLang } from './i18n.ts';
 import { initQuickFilters, openFilterModal, closeFilterModal, setupFilterOptions, applyFilters, resetFilters, clearAllFilters, renderFilterTags, updateActiveFiltersDisplay } from './filters.ts';
-import { loadData, loadMoreData, loadKoreaData } from './data.ts';
+import { loadData, loadMoreData, loadKoreaData, loadSureBetData, startSureBetRefresh, stopSureBetRefresh } from './data.ts';
 import { renderCalendar } from './render/index.ts';
 import { renderKoreaView, initKoreaSortListeners } from './render/koreaView.ts';
+import { renderSureBetView, initSureBetListeners } from './render/sureBetView.ts';
 import { initTooltip } from './render/tooltip.ts';
 import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
-import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents } from './state.ts';
+import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents } from './state.ts';
 import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
@@ -23,12 +24,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     initQuickFilters();
     initTooltip();
     setupEventListeners();
-    await loadData();
+    await loadData(() => {
+        // SWR 백그라운드 갱신 완료 시 캘린더 자동 리렌더
+        console.log('🔄 백그라운드 갱신 반영, 캘린더 리렌더');
+        updateActiveFiltersDisplay();
+        const searchQuery = (document.getElementById('searchInput') as HTMLInputElement)?.value || '';
+        renderCalendar(searchQuery);
+    });
     updateActiveFiltersDisplay();
     renderCalendar();
 
     initV2Admin();
     initKoreaSortListeners();
+    initSureBetListeners();
     initPageTabs();
 });
 
@@ -189,16 +197,34 @@ async function switchTab(tab: PageTab): Promise<void> {
     ];
 
     const koreaSection = document.getElementById('koreaViewSection');
+    const sureBetSection = document.getElementById('sureBetSection');
+
+    // 모든 섹션 숨김
+    calendarSections.forEach(el => {
+        if (el) (el as HTMLElement).style.display = 'none';
+    });
+    if (koreaSection) koreaSection.style.display = 'none';
+    if (sureBetSection) sureBetSection.style.display = 'none';
+
+    // surebet 탭 벗어날 때 자동 갱신 중지
+    stopSureBetRefresh();
 
     if (tab === 'calendar') {
         calendarSections.forEach(el => {
             if (el) (el as HTMLElement).style.display = '';
         });
-        if (koreaSection) koreaSection.style.display = 'none';
+    } else if (tab === 'surebet') {
+        if (sureBetSection) sureBetSection.style.display = '';
+
+        // 99% 마켓 데이터 로드
+        if (sureBetEvents.length === 0) {
+            await loadSureBetData();
+        }
+        renderSureBetView();
+
+        // 자동 갱신 시작 (10초 간격)
+        startSureBetRefresh(() => renderSureBetView());
     } else if (tab === 'korea') {
-        calendarSections.forEach(el => {
-            if (el) (el as HTMLElement).style.display = 'none';
-        });
         if (koreaSection) koreaSection.style.display = '';
 
         // 한국 데이터 로드 (최초 1회)

@@ -19,6 +19,9 @@ export interface PolyEvent {
   description_ko?: string | null;
   liquidity?: number;
   outcomes?: string[];
+  bestBid?: number;
+  bestAsk?: number;
+  spread?: number;
   _totalVolume?: number;
   _groupSize?: number;
 }

@@ -28,11 +28,18 @@ export let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
 export let isAdminMode = false;
 export let v2EditingEventId: string | null = null;
 
-export type PageTab = 'calendar' | 'korea';
+export type PageTab = 'calendar' | 'korea' | 'surebet';
 export let currentTab: PageTab = 'calendar';
 export let koreaEvents: PolyEvent[] = [];
 export let koreaSort: 'endDate' | 'volume' | 'probability' = 'endDate';
 export let koreaSelectedCategory: string | null = null;
+export let sureBetEvents: PolyEvent[] = [];
+export let sureBetSort: 'return' | 'annualized' | 'endDate' | 'volume' = 'annualized';
+export let sureBetMinProb: number = 90;
+export let sureBetSelectedCategory: string | null = null;
+export let sureBetRefreshInterval: ReturnType<typeof setInterval> | null = null;
+export let sureBetLastUpdate: number = 0;
+export let sureBetIsRefreshing: boolean = false;
 
 // ─── Setters ───
 
@@ -53,3 +60,10 @@ export function setCurrentTab(tab: PageTab): void { currentTab = tab; }
 export function setKoreaEvents(events: PolyEvent[]): void { koreaEvents = events; }
 export function setKoreaSort(sort: 'endDate' | 'volume' | 'probability'): void { koreaSort = sort; }
 export function setKoreaSelectedCategory(cat: string | null): void { koreaSelectedCategory = cat; }
+export function setSureBetEvents(events: PolyEvent[]): void { sureBetEvents = events; }
+export function setSureBetSort(sort: 'return' | 'annualized' | 'endDate' | 'volume'): void { sureBetSort = sort; }
+export function setSureBetMinProb(prob: number): void { sureBetMinProb = prob; }
+export function setSureBetSelectedCategory(cat: string | null): void { sureBetSelectedCategory = cat; }
+export function setSureBetRefreshInterval(id: ReturnType<typeof setInterval> | null): void { sureBetRefreshInterval = id; }
+export function setSureBetLastUpdate(ts: number): void { sureBetLastUpdate = ts; }
+export function setSureBetIsRefreshing(v: boolean): void { sureBetIsRefreshing = v; }
