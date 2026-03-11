@@ -92,6 +92,7 @@ vercel --prod
 | `translator` | 번역 품질 관리 + 피드백 학습 |
 | `etl-runner` | ETL 파이프라인 실행 및 모니터링 |
 | `web-manager` | 프론트엔드 개발 및 유지보수 |
+| `security-auditor` | 8대 보안 체크리스트 기반 취약점 점검 |
 
 ### 슬래시 커맨드 (.claude/commands/)
 
@@ -100,6 +101,7 @@ vercel --prod
 | `/translate` | 번역 파이프라인 실행 |
 | `/etl` | ETL 데이터 수집 실행 |
 | `/finish-work` | 커밋 전 보안 스캔 + PR 생성 |
+| `/security-audit` | 바이브 코딩 8대 보안 감사 |
 
 ---
 
