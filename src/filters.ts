@@ -1,6 +1,6 @@
 import { filters, tempFilters, allTags, allCategories, allEvents, setFilters, setTempFilters } from './state.ts';
 import { categoryColors } from './constants.ts';
-import { formatCurrency, inferCategory } from './utils.ts';
+import { formatCurrency, inferCategory, escapeHtml } from './utils.ts';
 import { translations, currentLang } from './i18n.ts';
 import { renderCalendar } from './render/index.ts';
 import type { PolyEvent, Filters } from './types.ts';
@@ -92,7 +92,7 @@ export function renderFilterTags(searchQuery = ''): void {
     filteredTags.forEach(([tag, count]) => {
         const chip = document.createElement('button');
         chip.className = `tag-chip${tempFilters.tags.includes(tag) ? ' active' : ''}`;
-        chip.innerHTML = `${tag} <span class="tag-count">${count}</span>`;
+        chip.innerHTML = `${escapeHtml(tag)} <span class="tag-count">${count}</span>`;
         chip.addEventListener('click', () => {
             if (tempFilters.tags.includes(tag)) {
                 tempFilters.tags = tempFilters.tags.filter(t => t !== tag);
@@ -113,7 +113,7 @@ export function renderFilterCategories(): void {
     Object.entries(allCategories).forEach(([category, count]) => {
         const chip = document.createElement('button');
         chip.className = `tag-chip${tempFilters.excludedCategories.includes(category) ? ' excluded' : ''}`;
-        chip.innerHTML = `${category} <span class="tag-count">${count}</span>`;
+        chip.innerHTML = `${escapeHtml(category)} <span class="tag-count">${count}</span>`;
         chip.addEventListener('click', () => {
             if (tempFilters.excludedCategories.includes(category)) {
                 tempFilters.excludedCategories = tempFilters.excludedCategories.filter(c => c !== category);
@@ -202,7 +202,7 @@ export function updateActiveFiltersDisplay(): void {
         hasFilters = true;
         const tagEl = document.createElement('span');
         tagEl.className = 'filter-tag';
-        tagEl.innerHTML = `${tag} <span class="remove-tag" data-type="tag" data-value="${tag}">×</span>`;
+        tagEl.innerHTML = `${escapeHtml(tag)} <span class="remove-tag" data-type="tag" data-value="${escapeHtml(tag)}">×</span>`;
         container.appendChild(tagEl);
     });
 
@@ -210,7 +210,7 @@ export function updateActiveFiltersDisplay(): void {
         hasFilters = true;
         const tagEl = document.createElement('span');
         tagEl.className = 'filter-tag excluded';
-        tagEl.innerHTML = `🚫 ${category} <span class="remove-tag" data-type="excludedCategory" data-value="${category}">×</span>`;
+        tagEl.innerHTML = `🚫 ${escapeHtml(category)} <span class="remove-tag" data-type="excludedCategory" data-value="${escapeHtml(category)}">×</span>`;
         container.appendChild(tagEl);
     });
 
