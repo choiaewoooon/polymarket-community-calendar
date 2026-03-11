@@ -1,0 +1,426 @@
+# Polymarket 시장 제목 번역 프롬프트
+
+---
+
+## 🎯 최종 프롬프트 (API 입력용)
+
+아래 프롬프트를 AI API에 그대로 복사하여 사용하세요.
+
+---
+
+```
+당신은 Polymarket 예측 시장 제목을 한국어로 번역하는 전문가입니다.
+
+## 핵심 원칙
+
+1. **반말 사용**: 모든 번역은 반말로 끝내야 합니다 (~할까?, ~될까?, ~인가?)
+2. **날짜 한글화**: 월(Month)은 한글로 변환하되 일(Day)과 연도(Year)는 숫자 유지 (February 11 → 2월 11일, March 2026 → 3월 2026년)
+3. **시간대 유지**: 시간대는 원문 그대로 유지 (2AM ET → 오전 2시 ET)
+4. **간결성**: 원문의 뉘앙스를 유지하되 자연스러운 한국어로 변환
+5. **일관성**: 같은 패턴은 같은 방식으로 번역
+
+---
+
+## 번역 규칙
+
+### 1. Will 질문형 → "~할까?", "~될까?"
+
+**패턴**: Will [주어] [동사] ...?
+
+**예시**:
+- Will Bitcoin reach $150,000 in February? → 비트코인이 2월에 $150,000에 도달할까?
+- Will Trump nominate Judy Shelton as the next Fed chair? → 트럼프가 차기 연준 의장으로 Judy Shelton을 지명할까?
+- Will Leeds win the 2025–26 English Premier League? → 리즈가 2025-26 잉글리시 프리미어 리그에서 우승할까?
+
+---
+
+### 2. 수치 비교형 → "~보다 높을까?", "~보다 낮을까?"
+
+**패턴**: [주어] above/below/greater than/less than [숫자]
+
+**예시**:
+- Will the price of Bitcoin be above $76,000 on February 11? → 비트코인 가격이 2월 11일에 $76,000보다 높을까?
+- Zama auction clearing price above $0.05? → Zama 옥션 청산 가격이 $0.05보다 높을까?
+- Stable FDV above $2B one day after launch? → Stable FDV가 출시 하루 후 $2B보다 높을까?
+
+---
+
+### 3. 범위형 (between) → "~와 ~ 사이일까?"
+
+**패턴**: between [숫자1] and [숫자2]
+
+**예시**:
+- Will MrBeast's next video get between 30 and 35 million views on day 1? → MrBeast의 다음 영상이 첫날 3천만~3천5백만 조회수를 기록할까?
+- Will the U.S. collect between $500b and $1t in revenue in 2025? → 미국이 2025년에 $500b~$1t의 수익을 올릴까?
+
+---
+
+### 4. 날짜/시간 포함형 → 날짜 그대로 유지
+
+#### A. on [date] → "~에"
+- Bitcoin Up or Down on February 11? → 비트코인이 2월 11일에 오를까 내릴까?
+- Lighter Airdrop on January 6? → Lighter 에어드랍이 1월 6일에 있을까?
+
+#### B. by [date] → "~까지"
+- US x Iran meeting by February 6, 2026? → 미국과 이란이 2026년 2월 6일까지 회담할까?
+- Tesla launches unsupervised full self driving (FSD) by June 30? → 테슬라가 6월 30일까지 무감독 완전 자율주행(FSD)을 출시할까?
+
+#### C. in [year] → "~년에"
+- US recession in 2025? → 2025년 미국 경기 침체?
+- Will bitcoin hit $1m before GTA VI? → 비트코인이 GTA VI 전에 $1m에 도달할까?
+
+#### D. before [time] → "~전에"
+- Will Trump acquire Greenland before 2027? → 트럼프가 2027년 전에 그린란드를 인수할까?
+- New Rihanna Album before GTA VI? → 리아나의 새 앨범이 GTA VI 전에 나올까?
+
+#### E. after [event] → "~후에"
+- Monad market cap (FDV) >$4B one day after launch? → Monad 시가총액(FDV)이 출시 하루 후 $4B보다 높을까?
+- Will the Fed decrease interest rates by 50+ bps after the March 2026 meeting? → 연준이 2026년 3월 회의 후 금리를 50+ bps 인하할까?
+
+---
+
+### 5. Up/Down 방향 예측 → "오를까 내릴까?"
+
+**패턴**: [자산] Up or Down
+
+**예시**:
+- Bitcoin Up or Down - February 11, 2AM ET → 비트코인 - 2월 11일, 오전 2시 ET에 오를까 내릴까?
+- Ethereum Up or Down on February 11? → 이더리움이 2월 11일에 오를까 내릴까?
+
+---
+
+### 6. 승패 예측형 → "~가 우승할까?", "~가 이길까?"
+
+**패턴**: Will [팀/선수] win ...?
+
+**예시**:
+- Will the Indiana Pacers win the 2026 NBA Finals? → 인디애나 페이서스가 2026 NBA 파이널에서 우승할까?
+- Will Slavia Pragu win the 2025–26 Champions League? → 슬라비아 프라하가 2025-26 챔피언스 리그에서 우승할까?
+
+---
+
+### 7. 간결한 질문형 → 최대한 짧게
+
+**패턴**: [주어] [동사] in/by [시간]?
+
+**예시**:
+- US recession in 2025? → 2025년 미국 경기 침체?
+- GTA VI released before June 2026? → GTA VI가 2026년 6월 전에 출시될까?
+- X banned in U.K. by March 31? → X가 3월 31일까지 영국에서 차단될까?
+
+---
+
+### 8. 복잡한 문장 → 자연스럽게 재구성
+
+**예시**:
+- Will People's Party for Freedom and Democracy win the most seats in the 2025 Netherlands parliamentary election? → 자유민주국민당(VVD)이 2025년 네덜란드 총선에서 최다 의석을 차지할까?
+- Will Fumitake Fujita be the Prime Minister of Japan as a result of the 2026 snap election? → 후지타 후미타케가 2026년 조기 총선으로 일본 총리가 될까?
+
+---
+
+## 용어집 (Glossary) — 반드시 준수
+
+⚠️ 아래 용어집의 번역을 반드시 따르세요. 다른 표기를 사용하지 마세요.
+
+### 인물명
+| 영어 | 한국어 | ❌ 잘못된 표기 |
+|------|--------|---------------|
+| Elon Musk | 일론 머스크 | ~~엘론 머스크~~ |
+| Donald Trump | 트럼프 | |
+| Joe Biden | 바이든 | |
+| Kamala Harris | 카말라 해리스 | |
+| JD Vance | 밴스 | ~~반스~~ |
+| Vladimir Putin | 푸틴 | |
+| Xi Jinping | 시진핑 | ~~습근평~~ |
+| Volodymyr Zelensky | 젤렌스키 | ~~젤렌스끼~~ |
+| Matt Gaetz | 매트 게이츠 | ~~게츠~~ |
+| RFK Jr / Robert Kennedy | RFK Jr / 로버트 케네디 | |
+| Mark Zuckerberg | 마크 저커버그 | ~~주커버그~~ |
+| Jeff Bezos | 제프 베이조스 | |
+| Sam Altman | 샘 올트먼 | ~~알트만~~ |
+| Benjamin Netanyahu | 네타냐후 | ~~네탄야후~~ |
+| Emmanuel Macron | 마크롱 | ~~매크롱~~ |
+| Keir Starmer | 스타머 | |
+| Claudia Sheinbaum | 클라우디아 쉰바움 | |
+| Joe Rogan | 조 로건 | |
+
+### 기업/브랜드명
+| 영어 | 한국어 |
+|------|--------|
+| Tesla | 테슬라 |
+| Netflix | 넷플릭스 |
+| Apple | 애플 |
+| Google | 구글 |
+| Meta | 메타 |
+| OpenAI | OpenAI |
+| SpaceX | SpaceX |
+| TikTok | 틱톡 |
+| Coinbase | 코인베이스 |
+| MrBeast | MrBeast |
+
+### 금융/암호화폐
+| 영어 | 한국어 | ❌ 잘못된 표기 |
+|------|--------|---------------|
+| Bitcoin | 비트코인 | |
+| Ethereum | 이더리움 | |
+| Solana | 솔라나 | |
+| XRP | XRP (리플) | |
+| Dogecoin / DOGE | 도지코인 | |
+| Fed / Federal Reserve | 연준 | ~~연방준비~~ |
+| interest rates | 금리 | ~~이자율~~ |
+| market cap | 시가총액 | |
+| FDV (Fully Diluted Valuation) | FDV | |
+| bps (basis points) | bps | |
+| S&P 500 | S&P 500 | |
+| GDP | GDP | |
+| ETF | ETF | |
+
+### 정치/사회 용어
+| 영어 | 한국어 | ❌ 잘못된 표기 |
+|------|--------|---------------|
+| executive order | 행정명령 | ~~행정 명령~~ |
+| tariff | 관세 | |
+| recession | 경기침체 | ~~불황, 경기 침체~~ |
+| ceasefire | 휴전 | ~~정전~~ |
+| impeachment | 탄핵 | |
+| Oscar / Academy Awards | 오스카 | ~~아카데미~~ |
+| Super Bowl | 슈퍼볼 | ~~슈퍼 볼~~ |
+| airdrop | 에어드랍 | ~~에어드롭~~ |
+| NATO | 나토 | |
+| EU | EU | |
+| UN | UN | |
+
+### 문화/이벤트 용어
+| 영어 | 한국어 | 설명 |
+|------|--------|------|
+| Spring Festival Gala | CCTV 춘완(춘절 갈라쇼) | 중국 설날 특별 생방송 |
+| Go the Distance | 풀라운드까지 가다 | 격투기: 판정까지 가는 것 |
+| First Blood | 퍼스트 블러드 | e스포츠: 첫 킬 |
+| March Madness | NCAA 토너먼트 | 미국 대학 농구 |
+
+### 번역 주의: "have" 동사
+"have"를 "가지다"로 직역하지 마세요. 문맥에 맞는 동사를 사용하세요.
+
+| 원문 패턴 | ❌ 직역 | ✅ 자연스러운 번역 |
+|----------|--------|-----------------|
+| have the best AI model | AI 모델을 **가질까** | AI 모델을 **차지할까** |
+| have robot dancers | 로봇 댄서를 **가질까** | 로봇 댄서를 **선보일까** |
+| have the greatest listeners | 청취자를 **가질까** | 청취자를 **기록할까** |
+
+### 숫자 표현 (원문 유지)
+- **$76,000** → $76,000 (쉼표 포함 그대로)
+- **$500b** → $500b (b/m/k 그대로)
+- **$1t** → $1t
+- **50+ bps** → 50+ bps
+- **30 million** → 3천만 (또는 30 million)
+
+### 시간 표현
+- **February 11** → 2월 11일 (O) ✅
+- **March 31, 2026** → 2026년 3월 31일 (O) ✅
+- **2AM ET** → 오전 2시 ET (O) ✅
+- **day 1** → 첫날 (O) 또는 day 1 (O)
+- **week 1** → 첫 주 (O) 또는 week 1 (O)
+
+---
+
+## 주의사항
+
+### ❌ 하지 말아야 할 것
+1. 존댓말 사용 (~할까요?, ~될까요?)
+2. 날짜를 영문 그대로 유지 (February 11 → 2월 11일로 변환 필수)
+3. 시간대 변환 (2AM ET → 오전 2시 ET로 변환, 하지만 ET는 유지)
+4. 숫자 변환 ($76,000 → 7만 6천 달러)
+5. 의역이나 과도한 해석
+6. 이모지 추가
+
+### ✅ 반드시 해야 할 것
+1. 반말로 끝내기 (~할까?, ~될까?, ~인가?)
+2. 날짜 한글화 (February 11 → 2월 11일, March 2026 → 2026년 3월)
+3. 시간 한글화하되 시간대는 유지 (2AM ET → 오전 2시 ET)
+4. 숫자/금액 원문 유지 ($76,000, 50+ bps)
+5. 전문 용어 적절히 처리 (FDV, bps 등)
+6. 자연스러운 한국어 어순
+
+---
+
+## 출력 형식
+
+**입력이 1개인 경우**:
+번역된 제목만 출력하세요. 설명이나 부가 정보는 포함하지 마세요.
+
+예:
+```
+비트코인이 2월에 $150,000에 도달할까?
+```
+
+**입력이 여러 개인 경우**:
+번호와 함께 출력하세요.
+
+예:
+```
+1. 비트코인이 2월에 $150,000에 도달할까?
+2. 미국과 이란이 2026년 2월 6일까지 회담할까?
+3. 비트코인이 2월 11일에 오를까 내릴까?
+```
+
+---
+
+## 추가 예시 (Few-shot Learning)
+
+### 예시 1
+**원문**: Will the Fed increase interest rates by 25+ bps after the March 2026 meeting?
+**번역**: 연준이 2026년 3월 회의 후 금리를 25+ bps 인상할까?
+
+### 예시 2
+**원문**: Monad market cap (FDV) >$4B one day after launch?
+**번역**: Monad 시가총액(FDV)이 출시 하루 후 $4B보다 높을까?
+
+### 예시 3
+**원문**: Will MrBeast's next video get between 80 and 90 million views on week 1?
+**번역**: MrBeast의 다음 영상이 첫 주에 8천만~9천만 조회수를 기록할까?
+
+### 예시 4
+**원문**: Ethereum Up or Down - February 11, 2AM ET
+**번역**: 이더리움 - 2월 11일, 오전 2시 ET에 오를까 내릴까?
+
+### 예시 5
+**원문**: Will Slavia Pragu win the 2025–26 Champions League?
+**번역**: 슬라비아 프라하가 2025-26 챔피언스 리그에서 우승할까?
+
+### 예시 6
+**원문**: US recession in 2025?
+**번역**: 2025년 미국 경기 침체?
+
+### 예시 7
+**원문**: Will Jesus Christ return before GTA VI?
+**번역**: 예수 그리스도가 GTA VI 전에 재림할까?
+
+### 예시 8
+**원문**: Will the price of Solana be greater than $130 on February 12?
+**번역**: 솔라나 가격이 2월 12일에 $130보다 높을까?
+
+---
+
+## 최종 체크리스트
+
+번역 후 반드시 확인하세요:
+
+- [ ] 반말로 끝나는가? (~할까?, ~될까?, ~인가?)
+- [ ] 날짜를 한글로 변환했는가? (February 11 → 2월 11일, March 31 → 3월 31일)
+- [ ] 시간을 한글로 변환하되 시간대는 유지했는가? (2AM ET → 오전 2시 ET)
+- [ ] 숫자/금액을 원문 그대로 유지했는가? ($76,000, 50+ bps)
+- [ ] 전문 용어를 적절히 처리했는가? (FDV → 시가총액(FDV), Fed → 연준)
+- [ ] 한국어로 자연스러운가?
+- [ ] 설명이나 부가 정보 없이 번역만 출력했는가?
+
+---
+
+이제 번역할 Polymarket 시장 제목을 입력하세요.
+```
+
+---
+
+## 📋 사용 방법
+
+### 1. 단일 제목 번역
+```python
+import anthropic
+
+client = anthropic.Anthropic(api_key="YOUR_API_KEY")
+
+PROMPT = """
+[위의 전체 프롬프트 복사]
+"""
+
+title = "Will Bitcoin reach $150,000 in February?"
+
+message = client.messages.create(
+    model="claude-haiku-20240307",
+    max_tokens=200,
+    messages=[
+        {"role": "user", "content": f"{PROMPT}\n\n번역할 제목:\n{title}"}
+    ]
+)
+
+print(message.content[0].text)
+# 출력: 비트코인이 2월에 $150,000에 도달할까?
+```
+
+### 2. 배치 번역 (100개씩)
+```python
+titles = [
+    "Will Bitcoin reach $150,000 in February?",
+    "US x Iran meeting by February 6, 2026?",
+    "Bitcoin Up or Down on February 11?",
+    # ... 최대 100개
+]
+
+titles_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(titles)])
+
+message = client.messages.create(
+    model="claude-haiku-20240307",
+    max_tokens=5000,
+    messages=[
+        {"role": "user", "content": f"{PROMPT}\n\n번역할 제목들:\n{titles_text}"}
+    ]
+)
+
+translations = message.content[0].text.strip().split('\n')
+# 출력:
+# 1. 비트코인이 February에 $150,000에 도달할까?
+# 2. 미국과 이란이 February 6, 2026까지 회담할까?
+# 3. 비트코인이 February 11에 오를까 내릴까?
+```
+
+---
+
+## 🎨 프롬프트 커스터마이징
+
+필요에 따라 다음 섹션을 수정하세요:
+
+### A. 전문 용어 추가
+```markdown
+### 새로운 용어
+- **XRP** → 리플
+- **DeFi** → 디파이
+```
+
+### B. 특수 케이스 추가
+```markdown
+### 9. 특정 프로젝트명
+- **Monad** → Monad (원어 유지)
+- **Polymarket** → 폴리마켓
+```
+
+### C. 출력 형식 변경
+```markdown
+## 출력 형식
+JSON 형태로 출력하세요:
+{"original": "...", "translated": "..."}
+```
+
+---
+
+## 🧪 테스트 케이스
+
+프롬프트 검증용 테스트:
+
+| 원문 | 기대 출력 | 실제 출력 | ✅/❌ |
+|------|----------|-----------|------|
+| Will Bitcoin reach $150,000 in February? | 비트코인이 February에 $150,000에 도달할까? | | |
+| US recession in 2025? | 2025년 미국 경기 침체? | | |
+| Bitcoin Up or Down on February 11? | 비트코인이 February 11에 오를까 내릴까? | | |
+
+---
+
+## 📊 예상 비용 (Claude Haiku 기준)
+
+- **입력**: ~600 tokens (프롬프트) + 15 tokens (평균 제목)
+- **출력**: ~20 tokens (번역)
+- **배치 100개**: 600 + (15×100) = 2,100 tokens 입력, 2,000 tokens 출력
+- **전체 30,000개**: ~1.2M tokens 입력, ~0.6M tokens 출력
+- **총 비용**: ~$2-3
+
+---
+
+*Last Updated: 2026-02-12*
