@@ -288,6 +288,14 @@ def is_korea_related(title: str, tags: list = None) -> bool:
         'celltrion', 'posco', 'hanwha',
         # 문화
         'kimchi premium', 'k-pop', 'kpop', 'squid game',
+        'bts', 'blackpink', 'hallyu', 'korean wave', 'k-beauty',
+        'k-drama', 'kdrama', 'netflix korea',
+        # K-POP 그룹
+        'aespa', 'newjeans', 'new jeans', 'le sserafim', 'ive',
+        'ateez', 'babymonster', 'baby monster', 'itzy', 'twice',
+        'stray kids', 'enhypen', 'nmixx', 'treasure',
+        'zerobaseone', 'riize', 'boynextdoor', 'illit', 'plave',
+        'day6', 'nct',
     ]
 
     # 짧은 키워드(4글자 이하)는 단어 경계 체크

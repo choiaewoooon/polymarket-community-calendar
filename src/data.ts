@@ -415,6 +415,12 @@ const KOREA_KEYWORDS_EN = [
     'kimchi', 'kpop', 'k-pop', 'k-drama', 'kdrama', 'hallyu',
     'bts', 'blackpink', 'squid game', 'netflix korea',
     'korean wave', 'k-beauty',
+    // K-POP 그룹 (BTS/BlackPink 외)
+    'aespa', 'newjeans', 'new jeans', 'le sserafim', 'ive',
+    'ateez', 'babymonster', 'baby monster', 'itzy', 'twice',
+    'stray kids', 'enhypen', 'nmixx', 'treasure',
+    'zerobaseone', 'riize', 'boynextdoor', 'illit', 'plave',
+    'day6', 'nct',
     // 스포츠 (한국 팀/리그/도시)
     'korean baseball', 'kbo', 'k league',
     'gwangju fc', 'daegu pegasus',
