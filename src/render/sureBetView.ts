@@ -15,6 +15,7 @@ interface SureBetCalc {
     annualizedPct: number;
     daysLeft: number;
     hoursLeft: number;
+    diffMs: number;
     safetyLevel: 'high' | 'medium' | 'low';
     spreadPct: number;
 }
@@ -59,17 +60,33 @@ function calcSureBet(event: PolyEvent): SureBetCalc {
     // 스프레드 %
     const spreadPct = event.spread ? event.spread * 100 : 0;
 
-    return { price, direction, returnPct, annualizedPct, daysLeft, hoursLeft, safetyLevel, spreadPct };
+    return { price, direction, returnPct, annualizedPct, daysLeft, hoursLeft, diffMs, safetyLevel, spreadPct };
 }
 
-function getTimeRemainingText(daysLeft: number, hoursLeft: number): string {
-    if (daysLeft <= 0) return currentLang === 'ko' ? '곧 종료' : 'Ending soon';
-    if (daysLeft < 1) {
-        const h = Math.floor(hoursLeft);
-        return currentLang === 'ko' ? `${h}시간 후` : `${h}h left`;
+function getTimeRemainingText(diffMs: number): string {
+    if (diffMs <= 0) return currentLang === 'ko' ? '곧 종료' : 'Ending soon';
+
+    const totalSec = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+
+    const isKo = currentLang === 'ko';
+
+    if (days >= 7) {
+        return isKo ? `${days}일 ${hours}시간` : `${days}d ${hours}h`;
     }
-    const d = Math.floor(daysLeft);
-    return currentLang === 'ko' ? `${d}일 후` : `${d}d left`;
+    if (days >= 1) {
+        return isKo ? `${days}일 ${hours}시간 ${mins}분` : `${days}d ${hours}h ${mins}m`;
+    }
+    if (hours >= 1) {
+        return isKo ? `${hours}시간 ${mins}분 ${secs}초` : `${hours}h ${mins}m ${secs}s`;
+    }
+    if (mins >= 1) {
+        return isKo ? `${mins}분 ${secs}초` : `${mins}m ${secs}s`;
+    }
+    return isKo ? `${secs}초` : `${secs}s`;
 }
 
 function getUrgencyClass(daysLeft: number): string {
@@ -257,7 +274,10 @@ export function renderSureBetView(): void {
     }
 
     if (statsEl) {
-        statsEl.innerHTML = renderSureBetStats(sorted);
+        const newStats = renderSureBetStats(sorted);
+        if (statsEl.innerHTML !== newStats) {
+            statsEl.innerHTML = newStats;
+        }
     }
 
     // 라이브 표시기 업데이트
@@ -273,15 +293,41 @@ export function renderSureBetView(): void {
         btn.classList.toggle('active', parseInt((btn as HTMLElement).dataset.prob || '90') === sureBetMinProb);
     });
 
-    grid.innerHTML = '';
-
     if (sorted.length === 0) {
         grid.innerHTML = `<div class="korea-empty">${currentLang === 'ko' ? '조건에 맞는 마켓이 없습니다' : 'No markets match this criteria'}</div>`;
+        stopCountdownTimer();
         return;
     }
 
+    // 기존 카드가 있고 이벤트 ID 목록이 같으면 DOM 재활용 (깜빡임 방지)
+    const existingIds = Array.from(grid.querySelectorAll('.sb-card[data-event-id]'))
+        .map(el => (el as HTMLElement).dataset.eventId);
+    const newIds = sorted.map(e => e.id);
+    const isSameList = existingIds.length === newIds.length &&
+        existingIds.every((id, i) => id === newIds[i]);
+
+    if (isSameList && existingIds.length > 0) {
+        // 같은 목록이면 카운트다운이 자체 갱신하므로 스킵
+        startCountdownTimer();
+        return;
+    }
+
+    // 다른 목록이면 부드럽게 교체
+    const fragment = document.createDocumentFragment();
     sorted.forEach(event => {
-        renderSureBetCard(grid, event);
+        renderSureBetCard(fragment as unknown as HTMLElement, event);
+    });
+
+    grid.style.opacity = '0.4';
+    requestAnimationFrame(() => {
+        grid.innerHTML = '';
+        grid.appendChild(fragment);
+        // 다음 프레임에서 fade-in
+        requestAnimationFrame(() => {
+            grid.style.transition = 'opacity 0.25s ease-out';
+            grid.style.opacity = '1';
+        });
+        startCountdownTimer();
     });
 }
 
@@ -296,10 +342,11 @@ function renderSureBetCard(container: HTMLElement, event: PolyEvent): void {
     const slugSafe = escapeHtml(event.slug || '');
     const eventSlugSafe = escapeHtml(event.event_slug || '');
     const urgencyClass = getUrgencyClass(calc.daysLeft);
-    const timeText = getTimeRemainingText(calc.daysLeft, calc.hoursLeft);
+    const timeText = getTimeRemainingText(calc.diffMs);
 
     const card = document.createElement('div');
     card.className = `sb-card sb-urgency-${urgencyClass}`;
+    card.dataset.eventId = event.id;
     card.onclick = () => openEventLink(slugSafe, '', eventSlugSafe);
 
     card.addEventListener('mouseenter', (e) => showEventTooltip(e, event));
@@ -337,19 +384,19 @@ function renderSureBetCard(container: HTMLElement, event: PolyEvent): void {
                 <span class="sb-meta-item ${spreadClass}" title="Bid/Ask: ${bidAskText}">
                     Spread ${spreadDisplay}%
                 </span>
-                <span class="sb-meta-item sb-meta-time sb-time-${urgencyClass}">
+                <span class="sb-meta-item sb-meta-time sb-time-${urgencyClass}" data-end-date="${event.end_date}">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
-                    ${timeText}
+                    <span class="sb-countdown-text">${timeText}</span>
                 </span>
                 <span class="sb-meta-item sb-meta-direction">
                     ${calc.direction} ${probDisplay}%
                 </span>
             </div>
         </div>
-        <div class="sb-card-returns">
+        <div class="sb-card-returns" data-end-date="${event.end_date}" data-return-pct="${calc.returnPct.toFixed(4)}">
             <div class="sb-return-main">
                 <span class="sb-return-value">+${calc.returnPct.toFixed(1)}%</span>
                 <span class="sb-return-label">${currentLang === 'ko' ? '수익률' : 'Return'}</span>
@@ -365,6 +412,63 @@ function renderSureBetCard(container: HTMLElement, event: PolyEvent): void {
     if (eventImg) applySafeImage(eventImg, imageUrl);
 
     container.appendChild(card);
+}
+
+// ─── 실시간 카운트다운 타이머 ───
+
+let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+function startCountdownTimer(): void {
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    countdownInterval = setInterval(() => {
+        const timeEls = document.querySelectorAll('.sb-meta-time[data-end-date]');
+        if (timeEls.length === 0) return;
+
+        const now = Date.now();
+
+        // 카운트다운 텍스트 + 긴급도 업데이트
+        timeEls.forEach(el => {
+            const endDate = (el as HTMLElement).dataset.endDate;
+            if (!endDate) return;
+            const diffMs = Math.max(new Date(endDate).getTime() - now, 0);
+            const textEl = el.querySelector('.sb-countdown-text');
+            if (textEl) {
+                textEl.textContent = getTimeRemainingText(diffMs);
+            }
+            const daysLeft = diffMs / (1000 * 60 * 60 * 24);
+            const parentCard = el.closest('.sb-card');
+            if (parentCard) {
+                const newUrgency = getUrgencyClass(daysLeft);
+                parentCard.classList.remove('sb-urgency-urgent', 'sb-urgency-soon', 'sb-urgency-later');
+                parentCard.classList.add(`sb-urgency-${newUrgency}`);
+            }
+            el.classList.remove('sb-time-urgent', 'sb-time-soon', 'sb-time-later');
+            el.classList.add(`sb-time-${getUrgencyClass(daysLeft)}`);
+        });
+
+        // 연환산 수익률(APY) 실시간 재계산
+        const returnEls = document.querySelectorAll('.sb-card-returns[data-end-date]');
+        returnEls.forEach(el => {
+            const endDate = (el as HTMLElement).dataset.endDate;
+            const returnPct = parseFloat((el as HTMLElement).dataset.returnPct || '0');
+            if (!endDate) return;
+            const diffMs = Math.max(new Date(endDate).getTime() - now, 0);
+            const daysLeft = diffMs / (1000 * 60 * 60 * 24);
+            const annualized = daysLeft > 0 ? returnPct * (365 / daysLeft) : 0;
+            const annualEl = el.querySelector('.sb-annual-value');
+            if (annualEl) {
+                annualEl.textContent = `${annualized > 9999 ? '9999+' : Math.round(annualized)}%`;
+            }
+        });
+    }, 1000);
+}
+
+export function stopCountdownTimer(): void {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
 }
 
 // ─── 이벤트 리스너 초기화 ───

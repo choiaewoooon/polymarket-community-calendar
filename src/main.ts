@@ -5,7 +5,7 @@ import { initQuickFilters, openFilterModal, closeFilterModal, setupFilterOptions
 import { loadData, loadMoreData, loadKoreaData, loadSureBetData, startSureBetRefresh, stopSureBetRefresh } from './data.ts';
 import { renderCalendar } from './render/index.ts';
 import { renderKoreaView, initKoreaSortListeners } from './render/koreaView.ts';
-import { renderSureBetView, initSureBetListeners } from './render/sureBetView.ts';
+import { renderSureBetView, initSureBetListeners, stopCountdownTimer } from './render/sureBetView.ts';
 import { initTooltip } from './render/tooltip.ts';
 import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
@@ -244,8 +244,9 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
     if (koreaSection) koreaSection.style.display = 'none';
     if (sureBetSection) sureBetSection.style.display = 'none';
 
-    // surebet 탭 벗어날 때 자동 갱신 중지
+    // surebet 탭 벗어날 때 자동 갱신 + 카운트다운 중지
     stopSureBetRefresh();
+    stopCountdownTimer();
 
     if (tab === 'calendar') {
         calendarSections.forEach(el => {
