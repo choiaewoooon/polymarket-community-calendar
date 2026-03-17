@@ -846,6 +846,7 @@ body::after {
     box-shadow: var(--shadow-card);
     position: relative;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .week-event::before {
