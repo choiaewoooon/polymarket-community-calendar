@@ -13,6 +13,7 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 | 캘린더 (메인) | [`/`](https://polymarket-calender.vercel.app) | 주간 타임라인 + 월간 캘린더 |
 | 99% 마켓 | [`/99market`](https://polymarket-calender.vercel.app/99market) | 확률 90%+ 단기 확정 수익 기회 |
 | 한국 시장 | [`/komarket`](https://polymarket-calender.vercel.app/komarket) | 한국 관련 예측 시장 모아보기 |
+| 라이브 트래커 | [`/live`](https://polymarket-calender.vercel.app/live) | 시장 × 실시간 데이터 (날씨 등) |
 | 관리자 (V1) | [`/admin/`](https://polymarket-calender.vercel.app/admin/) | 테이블 형태 시장 관리 대시보드 |
 
 - SPA 클라이언트 라우팅 (`history.pushState`) 지원
@@ -70,7 +71,20 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 - 자동 갱신 간격: 10초 (탭 전환 시 자동 시작/중지)
 - Vercel rewrites를 통한 CORS 프록시 (`/api/gamma/`)
 
-### 3. 한국 시장 (`/komarket`)
+### 3. 라이브 트래커 (`/live`)
+
+시장 데이터와 실시간 외부 데이터를 결합하여 예측 정확도를 추적합니다.
+
+**주요 기능**
+- 기상청 예보 정확도 트래커: 날씨 관련 마켓 × 실제 기상 데이터
+- 실시간 데이터 소스 연동 (날씨 등)
+- 예보 정확도 시각화
+
+**기술 구현**
+- 외부 API 데이터와 Polymarket 마켓 데이터 매칭
+- ETL `backfill_forecast_accuracy.py`로 예보 정확도 역산
+
+### 4. 한국 시장 (`/komarket`)
 
 한국 관련 키워드가 포함된 예측 시장만 필터링하여 보여줍니다.
 
@@ -84,7 +98,15 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 - 키워드: Korea, Korean, South Korea, Seoul, Busan, Samsung, Hyundai 등
 - 짧은 키워드 오탐 방지 로직 포함
 
-### 4. 공통 기능
+### 5. 공통 기능
+
+**UI/UX**
+- 통합 스티키 헤더: 히어로 + 탭 2줄 구조 (스크롤 시 자동 축소)
+- 필터 모달: 아이콘 버튼 + 활성 필터 수 뱃지
+- 확률 프로그레스 바: Week View 카드 내 시각적 확률 표시
+- 안전 등급 뱃지: 99% 마켓 A/B/C 등급
+- 3-breakpoint 반응형: 1024px / 768px / 480px
+- 모바일 아코디언: Week View 일별 접기/펼치기 (480px 이하)
 
 **사용자 설정**
 - 테마: Dark / Light 모드
@@ -144,6 +166,7 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 │       ├── calendarView.ts # 월간 캘린더 개요
 │       ├── sureBetView.ts  # 99% 마켓 뷰
 │       ├── koreaView.ts    # 한국 시장 뷰
+│       ├── liveTrackerView.ts # 라이브 트래커 뷰
 │       ├── modal.ts        # 이벤트 상세 모달
 │       └── tooltip.ts      # 툴팁
 │
@@ -156,6 +179,7 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 │   ├── main.py             # Polymarket API → Supabase 동기화
 │   ├── translate.py        # 한글 번역 (OpenAI)
 │   ├── postprocess.py      # 번역 후처리
+│   ├── backfill_forecast_accuracy.py # 기상청 예보 정확도 역산
 │   ├── translation_prompt.md # 번역 규칙
 │   ├── requirements.txt    # Python 의존성
 │   ├── schema.sql          # DB 스키마
@@ -184,7 +208,7 @@ title_ko, description_ko 컬럼 업데이트
   ↓ (웹 앱 로드)
 src/data.ts → Supabase 쿼리 + Gamma API
   ↓ (렌더링)
-캘린더 / 99% 마켓 / 한국 시장
+캘린더 / 99% 마켓 / 한국 시장 / 라이브 트래커
 ```
 
 ### URL 라우팅
@@ -193,6 +217,7 @@ src/data.ts → Supabase 쿼리 + Gamma API
 vercel.json rewrites:
   /99market  → /index.html
   /komarket  → /index.html
+  /live      → /index.html
   /api/gamma → https://gamma-api.polymarket.com (CORS 프록시)
 
 src/main.ts:
@@ -200,6 +225,7 @@ src/main.ts:
   /         → calendar 탭
   /99market → surebet 탭
   /komarket → korea 탭
+  /live     → live 탭
 ```
 
 ### 캐싱 전략
