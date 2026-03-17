@@ -3897,6 +3897,21 @@ body.admin-mode .container {
     background: rgba(99, 102, 241, 0.05);
 }
 
+.city-widget.disabled {
+    cursor: default;
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.city-widget-soon {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+}
+
 .city-widget-flag {
     font-size: 20px;
     margin-bottom: 4px;

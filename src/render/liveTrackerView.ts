@@ -643,11 +643,26 @@ async function loadAndRenderForecastAccuracy(city: string): Promise<void> {
 
 // ─── 도시 위젯 ───
 
+// 현재 라이브 트래커가 완전 지원되는 도시
+const SUPPORTED_CITIES = new Set(['Seoul']);
+
 function renderCityWidget(group: CityWeatherGroup, isActive: boolean): string {
     const station = CITY_STATIONS[group.city];
     const flag = station?.flag || '🌍';
     const nameKo = station?.nameKo || group.city;
     const displayName = currentLang === 'ko' ? nameKo : group.city;
+    const isSupported = SUPPORTED_CITIES.has(group.city);
+
+    if (!isSupported) {
+        return `
+            <div class="city-widget disabled">
+                <div class="city-widget-flag">${flag}</div>
+                <div class="city-widget-name">${escapeHtml(displayName)}</div>
+                <div class="city-widget-soon">SOON</div>
+            </div>
+        `;
+    }
+
     const topMarket = group.markets.reduce((best, m) => m.prob > best.prob ? m : best, group.markets[0]);
 
     return `
@@ -1433,7 +1448,7 @@ function renderForecastAccuracy(rows: ForecastAccuracyRow[]): string {
 export function initLiveTrackerListeners(): void {
     document.addEventListener('click', (e) => {
         const widget = (e.target as HTMLElement).closest('.city-widget');
-        if (!widget) return;
+        if (!widget || widget.classList.contains('disabled')) return;
         const city = (widget as HTMLElement).dataset.city;
         if (!city || city === liveSelectedCity) return;
         setLiveSelectedCity(city);
