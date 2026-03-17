@@ -22,7 +22,7 @@ KMA_AUTH_KEY = os.getenv("KMA_AUTH_KEY", "16tey01xR-irXstNcTfo0w")
 WU_API_KEY = os.getenv("WU_API_KEY", "e1f10a1e78da46f5b10a1e78da96f525")
 
 # 서울 인천공항 격자 좌표 (KMA 단기예보)
-KMA_NX = 55
+KMA_NX = 51
 KMA_NY = 124
 
 # WU 관측소
@@ -80,18 +80,25 @@ def fetch_kma_forecast_high(target_date: datetime, use_today_base: bool = False)
             print(f"  ⚠️ KMA 예보 데이터 없음: {target_date_str} (base: {base_date_str} {base_time})")
             return None
 
-        # target_date의 TMP 카테고리만 필터
+        # target_date의 TMX(공식 최고기온) + TMP(시간별 기온) 추출
+        tmx_high = None
         temps = []
         for item in items:
-            if item.get("category") == "TMP" and item.get("fcstDate") == target_date_str:
+            if item.get("fcstDate") != target_date_str:
+                continue
+            if item.get("category") == "TMX":
+                tmx_high = float(item["fcstValue"])
+            elif item.get("category") == "TMP":
                 temps.append(float(item["fcstValue"]))
 
-        if not temps:
-            print(f"  ⚠️ KMA TMP 데이터 없음: {target_date_str}")
+        if tmx_high is None and not temps:
+            print(f"  ⚠️ KMA 기온 데이터 없음: {target_date_str}")
             return None
 
-        forecast_high = max(temps)
-        print(f"  📊 KMA 예보 최고: {forecast_high}° ({len(temps)}시간 데이터)")
+        # TMX(공식 최고기온 예보) 우선, 없으면 TMP max
+        forecast_high = tmx_high if tmx_high is not None else max(temps)
+        source = "TMX" if tmx_high is not None else f"TMP max ({len(temps)}시간)"
+        print(f"  📊 KMA 예보 최고: {forecast_high}° ({source})")
         return forecast_high
 
     except Exception as e:

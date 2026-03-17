@@ -244,6 +244,24 @@ export function updateActiveFiltersDisplay(): void {
 
     clearBtn.style.display = hasFilters ? 'block' : 'none';
 
+    // 필터 배지 업데이트 (Phase 1: 탭 바 필터 버튼)
+    const filterBadge = document.getElementById('filterBadge');
+    const filterToggleBtn = document.getElementById('filterToggleBtn');
+    if (filterBadge && filterToggleBtn) {
+        const count = filters.tags.length + filters.excludedCategories.length
+            + (filters.timeRemaining !== 'all' ? 1 : 0)
+            + (filters.minVolume > 0 ? 1 : 0)
+            + (filters.minLiquidity > 0 ? 1 : 0);
+        if (count > 0) {
+            filterBadge.textContent = String(count);
+            filterBadge.style.display = 'flex';
+            filterToggleBtn.classList.add('has-filters');
+        } else {
+            filterBadge.style.display = 'none';
+            filterToggleBtn.classList.remove('has-filters');
+        }
+    }
+
     container.querySelectorAll('.remove-tag').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();

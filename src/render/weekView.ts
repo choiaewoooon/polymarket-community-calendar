@@ -135,6 +135,9 @@ function renderWeekEventCard(container: HTMLElement, event: PolyEvent): void {
                 <span class="week-event-prob ${probClass}">${prob}%</span>
                 <span class="week-event-volume">Vol: $${volume}</span>
             </div>
+            <div class="week-event-prob-bar">
+                <div class="week-event-prob-fill ${probClass}" style="width:${prob}%"></div>
+            </div>
         </div>
     `;
 

@@ -97,9 +97,9 @@ function getUrgencyClass(daysLeft: number): string {
 
 function getSafetyIcon(level: 'high' | 'medium' | 'low'): string {
     switch (level) {
-        case 'high': return '<span class="sb-safety sb-safety-high" title="$1M+">&#9679;</span>';
-        case 'medium': return '<span class="sb-safety sb-safety-medium" title="$100K+">&#9679;</span>';
-        case 'low': return '<span class="sb-safety sb-safety-low" title="<$100K">&#9679;</span>';
+        case 'high': return '<span class="sb-safety sb-safety-high" title="$1M+ Vol, $50K+ Liq">A</span>';
+        case 'medium': return '<span class="sb-safety sb-safety-medium" title="$100K+ Vol, $5K+ Liq">B</span>';
+        case 'low': return '<span class="sb-safety sb-safety-low" title="<$100K Vol">C</span>';
     }
 }
 

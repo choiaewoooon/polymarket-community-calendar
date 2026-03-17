@@ -168,7 +168,7 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
 
     try {
         const { base_date, base_time } = getKmaBaseTime();
-        const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=55&ny=124&authKey=${KMA_AUTH_KEY}`;
+        const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124&authKey=${KMA_AUTH_KEY}`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`KMA HTTP ${res.status}`);
@@ -181,21 +181,26 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
         const targetDateObj = new Date(targetDate + ', 2026');
         const targetYmd = `${targetDateObj.getFullYear()}${String(targetDateObj.getMonth() + 1).padStart(2, '0')}${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
-        // TMP 카테고리만 필터 + targetDate 매칭
+        // TMP(시간별 기온) + TMX(공식 최고기온) 추출
         const hours: string[] = [];
         const temps: number[] = [];
+        let tmxHigh: number | null = null;
         for (const item of items) {
-            if (item.category === 'TMP' && item.fcstDate === targetYmd) {
+            if (item.fcstDate !== targetYmd) continue;
+            if (item.category === 'TMP') {
                 const h = item.fcstTime.substring(0, 2);
                 const m = item.fcstTime.substring(2, 4);
                 hours.push(`${h}:${m}`);
                 temps.push(Number(item.fcstValue));
+            } else if (item.category === 'TMX') {
+                tmxHigh = Number(item.fcstValue);
             }
         }
 
         if (temps.length === 0) return null;
 
-        const forecastHigh = Math.max(...temps);
+        // TMX(공식 최고기온 예보) 우선, 없으면 TMP max
+        const forecastHigh = tmxHigh !== null ? tmxHigh : Math.max(...temps);
         const result: HourlyWeather = {
             hours,
             temps,
@@ -271,7 +276,11 @@ async function fetchWeatherComForecast(city: string, targetDate: string): Promis
 
 async function fetchForecastWeather(city: string, targetDate: string): Promise<HourlyWeather | null> {
     if (city === 'Seoul') {
-        return fetchKmaForecast(targetDate);
+        // KMA 우선, 실패 시 Weather.com fallback
+        const kma = await fetchKmaForecast(targetDate);
+        if (kma) return kma;
+        console.warn('⚠️ KMA 실패, Weather.com fallback');
+        return fetchWeatherComForecast(city, targetDate);
     }
     return fetchWeatherComForecast(city, targetDate);
 }
@@ -819,19 +828,23 @@ async function loadAndRenderWeatherChart(group: CityWeatherGroup): Promise<void>
         .filter(m => m.comparison === 'above')
         .sort((a, b) => a.targetTemp - b.targetTemp);
 
-    let weather: HourlyWeather | null;
+    let weather: HourlyWeather | null = null;
     let forecastOverlay: HourlyWeather | null = null;
-    if (isToday) {
-        weather = await fetchHourlyWeather(group.city);
-        // 오늘 차트에 기상청 예보 오버레이 (비교용, 실패해도 무시)
-        try {
-            forecastOverlay = await fetchForecastWeather(group.city, activeDate);
-            console.log('📊 기상청 예보 오버레이:', forecastOverlay ? `${forecastOverlay.temps.length}시간 로드` : 'null');
-        } catch (e) {
-            console.warn('⚠️ 기상청 예보 오버레이 실패:', e);
+    try {
+        if (isToday) {
+            weather = await fetchHourlyWeather(group.city);
+            // 오늘 차트에 기상청 예보 오버레이 (비교용, 실패해도 무시)
+            try {
+                forecastOverlay = await fetchForecastWeather(group.city, activeDate);
+                console.log('📊 기상청 예보 오버레이:', forecastOverlay ? `${forecastOverlay.temps.length}시간 로드` : 'null');
+            } catch (e) {
+                console.warn('⚠️ 기상청 예보 오버레이 실패:', e);
+            }
+        } else {
+            weather = await fetchForecastWeather(group.city, activeDate);
         }
-    } else {
-        weather = await fetchForecastWeather(group.city, activeDate);
+    } catch (e) {
+        console.error('❌ 기온 데이터 fetch 실패:', e);
     }
 
     if (!weather) {
@@ -839,7 +852,12 @@ async function loadAndRenderWeatherChart(group: CityWeatherGroup): Promise<void>
         return;
     }
 
-    chartArea.innerHTML = renderSVGChart(weather, group.city, forecastOverlay);
+    try {
+        chartArea.innerHTML = renderSVGChart(weather, group.city, forecastOverlay);
+    } catch (e) {
+        console.error('❌ 차트 렌더링 실패:', e);
+        chartArea.innerHTML = `<div class="wt-chart-empty">차트 렌더링 오류</div>`;
+    }
 }
 
 function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: HourlyWeather | null): string {
@@ -859,9 +877,11 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
     const maxT = Math.ceil(Math.max(...allTemps) + 2);
     const rangeT = maxT - minT || 1;
 
-    // 좌표 변환 — X축은 항상 0~23시 전체
-    const xOfHour = (h: number) => padL + (h / 23) * plotW;
+    // 좌표 변환 — X축은 0~21시 (마켓 마감 KST 21:00 기준)
+    const MARKET_CLOSE_HOUR = 21;
+    const xOfHour = (h: number) => padL + (Math.min(h, MARKET_CLOSE_HOUR) / MARKET_CLOSE_HOUR) * plotW;
     const xOf = (i: number) => {
+        if (i < 0 || i >= hours.length) return padL;
         const h = parseInt(hours[i].split(':')[0]);
         return xOfHour(h);
     };
@@ -876,8 +896,8 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
         for (let t = minT; t <= maxT; t += 2) yTicks.push(t);
     }
 
-    // X축 눈금 (6시간 단위) — 시간 값 기준
-    const xTickHours = [0, 6, 12, 18, 23];
+    // X축 눈금 — 마켓 마감(21:00) 기준
+    const xTickHours = [0, 6, 12, 18, 21];
 
     // 마켓 임계값 수평선 — 제거됨 (혼란 유발)
 
@@ -906,13 +926,13 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
                     <div class="wt-chart-high">
                         <span class="wt-chart-forecast-badge">FORECAST</span>
                     </div>
-                    <a class="wt-chart-wu-link" href="${wuUrl}" target="_blank" rel="noopener">
+                    <a class="wt-chart-wu-link" href="${city === 'Seoul' ? 'https://www.weather.go.kr/w/weather/forecast/short-term.do' : wuUrl}" target="_blank" rel="noopener">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                             <polyline points="15 3 21 3 21 9"></polyline>
                             <line x1="10" y1="14" x2="21" y2="3"></line>
                         </svg>
-                        Weather.com (${stationCode})
+                        ${city === 'Seoul' ? '기상청 예보 (RKSI)' : `Weather.com (${stationCode})`}
                     </a>
                 </div>
                 <div class="wt-chart-disclaimer">${city === 'Seoul' ? '기상청(KMA) 단기예보 — 인천공항(RKSI) 기준' : 'Weather.com 48시간 예보 데이터'} — 실제 결과와 다를 수 있음</div>
@@ -951,21 +971,35 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
     }
 
     // ── 실측 차트 (기존 로직) ──
+    // 마감(21시) 이후 데이터 제외
+    const maxDataIdx = hours.findIndex(h => parseInt(h.split(':')[0]) > MARKET_CLOSE_HOUR);
+    const effectiveLen = maxDataIdx === -1 ? hours.length : maxDataIdx;
+
     const nowLocal = new Date().toLocaleString('sv-SE', { timeZone: station?.tz || 'UTC' }).replace(' ', 'T');
     const nowHour = parseInt(nowLocal.split('T')[1]?.split(':')[0] || '23');
-    const nowIdx = Math.min(nowHour, hours.length - 1);
+    // hours 배열에서 현재 시각 이하의 마지막 인덱스 찾기
+    let nowIdx = 0;
+    for (let i = 0; i < effectiveLen; i++) {
+        const h = parseInt(hours[i].split(':')[0]);
+        if (h <= nowHour) nowIdx = i;
+    }
 
-    const observedPoints = temps.slice(0, nowIdx + 1).map((t, i) => `${xOf(i).toFixed(1)},${yOf(t).toFixed(1)}`);
+    // effectiveLen 범위 내에서만 포인트 생성
+    const safeNowIdx = Math.min(nowIdx, effectiveLen - 1);
+
+    const observedPoints = temps.slice(0, safeNowIdx + 1).map((t, i) => `${xOf(i).toFixed(1)},${yOf(t).toFixed(1)}`);
     const observedPath = observedPoints.length > 1 ? `M${observedPoints.join(' L')}` : '';
 
-    const forecastPoints = temps.slice(nowIdx).map((t, i) => `${xOf(nowIdx + i).toFixed(1)},${yOf(t).toFixed(1)}`);
+    const remainingTemps = temps.slice(safeNowIdx, effectiveLen);
+    const forecastPoints = remainingTemps.map((t, i) => `${xOf(safeNowIdx + i).toFixed(1)},${yOf(t).toFixed(1)}`);
     const forecastPath = forecastPoints.length > 1 ? `M${forecastPoints.join(' L')}` : '';
 
     const fillPath = observedPoints.length > 1
-        ? `M${xOf(0).toFixed(1)},${yOf(minT).toFixed(1)} L${observedPoints.join(' L')} L${xOf(nowIdx).toFixed(1)},${yOf(minT).toFixed(1)} Z`
+        ? `M${xOf(0).toFixed(1)},${yOf(minT).toFixed(1)} L${observedPoints.join(' L')} L${xOf(safeNowIdx).toFixed(1)},${yOf(minT).toFixed(1)} Z`
         : '';
 
-    const highIdx = temps.slice(0, nowIdx + 1).indexOf(Math.max(...temps.slice(0, nowIdx + 1)));
+    const observedTemps = temps.slice(0, safeNowIdx + 1);
+    const highIdx = observedTemps.length > 0 ? observedTemps.indexOf(Math.max(...observedTemps)) : -1;
 
     // ── 기상청 예보 오버레이 (오늘 차트에만) ──
     let forecastOverlayPath = '';
@@ -976,12 +1010,15 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
         const fPoints: string[] = [];
         for (let fi = 0; fi < fHours.length; fi++) {
             const hourNum = parseInt(fHours[fi].split(':')[0]);
+            if (hourNum > MARKET_CLOSE_HOUR) continue;
             fPoints.push(`${xOfHour(hourNum).toFixed(1)},${yOf(fTemps[fi]).toFixed(1)}`);
         }
         if (fPoints.length > 1) {
             forecastOverlayPath = `M${fPoints.join(' L')}`;
         }
-        const fHigh = Math.max(...fTemps);
+        // 21시까지의 예보만으로 최고기온 계산
+        const fTempsInRange = fTemps.filter((_, i) => parseInt(fHours[i].split(':')[0]) <= MARKET_CLOSE_HOUR);
+        const fHigh = fTempsInRange.length > 0 ? Math.max(...fTempsInRange) : Math.max(...fTemps);
         forecastOverlayHighLabel = `예보 최고 ${Math.round(fHigh)}°`;
     }
 
@@ -1039,6 +1076,10 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
 
                 <circle cx="${xOf(nowIdx).toFixed(1)}" cy="${yOf(temps[nowIdx]).toFixed(1)}" r="3" fill="var(--accent-cyan)" stroke="var(--bg-primary)" stroke-width="2"/>
                 <line x1="${xOf(nowIdx).toFixed(1)}" y1="${padT}" x2="${xOf(nowIdx).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-cyan)" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+
+                <!-- 마감선 (21:00 KST) -->
+                <line x1="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y1="${padT}" x2="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-red, #ef4444)" stroke-width="1" stroke-dasharray="4,2" opacity="0.5"/>
+                <text x="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y="${padT - 4}" fill="var(--accent-red, #ef4444)" font-size="8" font-family="var(--font-mono)" text-anchor="middle" opacity="0.7">CLOSE</text>
 
                 <defs>
                     <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">

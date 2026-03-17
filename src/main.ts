@@ -40,6 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSureBetListeners();
     initLiveTrackerListeners();
     initPageTabs();
+    initHeaderShrink();
+    initMobileAccordion();
 
     // URL 기반 초기 탭 설정
     const initialTab = getTabFromPath();
@@ -124,13 +126,13 @@ function setupEventListeners(): void {
         renderCalendar((e.target as HTMLInputElement).value);
     });
 
-    // Filter row click -> open filter modal
-    document.getElementById('filtersRow')!.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('#clearFilters') || (e.target as HTMLElement).closest('.remove-tag')) {
-            return;
-        }
-        openFilterModal();
-    });
+    // Filter toggle button -> open filter modal
+    const filterToggleBtn = document.getElementById('filterToggleBtn');
+    if (filterToggleBtn) {
+        filterToggleBtn.addEventListener('click', () => {
+            openFilterModal();
+        });
+    }
 
     // Filter modal events
     document.getElementById('filterModalClose')!.addEventListener('click', closeFilterModal);
@@ -228,12 +230,9 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
         btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
     });
 
-    // 캘린더 관련 섹션들
+    // 캘린더 관련 섹션들 (info-banner, toolbar 제거됨 — Phase 1 리뉴얼)
     const calendarSections = [
-        document.querySelector('.info-banner'),
-        document.querySelector('.toolbar'),
         document.querySelector('.quick-filters'),
-        document.querySelector('.filters-row'),
         document.querySelector('.week-section'),
         document.querySelector('.calendar-overview-section'),
     ];
@@ -286,6 +285,40 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
         }
         renderLiveTrackerView();
     }
+}
+
+// ─── Phase 4: 스크롤 시 헤더 축소 ───
+
+function initHeaderShrink(): void {
+    const header = document.querySelector('.unified-header');
+    if (!header) return;
+
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                header.classList.toggle('scrolled', window.scrollY > 30);
+                ticking = false;
+            });
+            ticking = true;
+        }
+    }, { passive: true });
+}
+
+// ─── Phase 3: 모바일 Week View 아코디언 ───
+
+function initMobileAccordion(): void {
+    document.getElementById('weekTimeline')?.addEventListener('click', (e) => {
+        if (window.innerWidth > 480) return;
+
+        const header = (e.target as HTMLElement).closest('.week-day-header');
+        if (!header) return;
+
+        const dayEl = header.closest('.week-day');
+        if (!dayEl || dayEl.classList.contains('today')) return;
+
+        dayEl.classList.toggle('expanded');
+    });
 }
 
 function handleRefresh(): void {

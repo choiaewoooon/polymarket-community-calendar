@@ -29,3 +29,9 @@ docs/
 node_modules/
 dist/
 .env*.local
+
+# Test
+test-report.txt
+test-report.html
+test-results.json
+test-output.txt
