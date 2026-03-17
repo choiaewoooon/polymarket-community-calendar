@@ -638,7 +638,8 @@ async function loadAndRenderForecastAccuracy(city: string): Promise<void> {
     if (!area) return;
 
     const rows = await fetchForecastAccuracy(city);
-    area.innerHTML = renderForecastAccuracy(rows);
+    const cityPast = pastDayResults.get(city);
+    area.innerHTML = renderForecastAccuracy(rows, cityPast);
 }
 
 // ─── 도시 위젯 ───
@@ -874,8 +875,6 @@ function renderCityDetail(group: CityWeatherGroup): string {
                 ${sorted.map(m => renderProbRow(m, group.unit, maxP)).join('')}
             </div>
         </div>
-
-        ${renderPastTimeline(group.city, group.unit)}
 
         <div id="forecastAccuracyArea"></div>
     `;
@@ -1171,7 +1170,7 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
 
                 ${fillPath ? `<path d="${fillPath}" fill="url(#tempGrad)" opacity="0.3"/>` : ''}
                 ${observedPath ? `<path d="${observedPath}" fill="none" stroke="var(--accent-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-                ${forecastPath ? `<path d="${forecastPath}" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>` : ''}
+                ${forecastPath ? `<path d="${forecastPath}" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>` : ''}
 
                 ${highIdx >= 0 ? `
                     <circle cx="${xOf(highIdx).toFixed(1)}" cy="${yOf(temps[highIdx]).toFixed(1)}" r="4" fill="var(--accent-green)" stroke="var(--bg-primary)" stroke-width="2"/>
@@ -1179,16 +1178,16 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
                 ` : ''}
 
                 <circle cx="${xOf(nowIdx).toFixed(1)}" cy="${yOf(temps[nowIdx]).toFixed(1)}" r="3" fill="var(--accent-cyan)" stroke="var(--bg-primary)" stroke-width="2"/>
-                <line x1="${xOf(nowIdx).toFixed(1)}" y1="${padT}" x2="${xOf(nowIdx).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-cyan)" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+                <line x1="${xOf(nowIdx).toFixed(1)}" y1="${padT}" x2="${xOf(nowIdx).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-cyan)" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6"/>
 
                 <!-- 마감선 (21:00 KST) -->
-                <line x1="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y1="${padT}" x2="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-red, #ef4444)" stroke-width="1" stroke-dasharray="4,2" opacity="0.5"/>
-                <text x="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y="${padT - 4}" fill="var(--accent-red, #ef4444)" font-size="8" font-family="var(--font-mono)" text-anchor="middle" opacity="0.7">CLOSE</text>
+                <line x1="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y1="${padT}" x2="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-red, #ef4444)" stroke-width="1" stroke-dasharray="4,2" opacity="0.7"/>
+                <text x="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y="${padT - 4}" fill="var(--accent-red, #ef4444)" font-size="8" font-family="var(--font-mono)" text-anchor="middle" opacity="0.9">CLOSE</text>
 
                 <defs>
                     <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="var(--accent-cyan)" stop-opacity="0.4"/>
-                        <stop offset="100%" stop-color="var(--accent-cyan)" stop-opacity="0"/>
+                        <stop offset="0%" stop-color="var(--accent-cyan)" stop-opacity="0.5"/>
+                        <stop offset="100%" stop-color="var(--accent-cyan)" stop-opacity="0.05"/>
                     </linearGradient>
                 </defs>
             </svg>
@@ -1335,8 +1334,8 @@ async function fetchForecastAccuracy(city: string): Promise<ForecastAccuracyRow[
     }
 }
 
-function renderForecastAccuracy(rows: ForecastAccuracyRow[]): string {
-    if (rows.length === 0) return '';
+function renderForecastAccuracy(rows: ForecastAccuracyRow[], cityPast?: Map<string, WeatherMarket[]>): string {
+    if (rows.length === 0 && (!cityPast || cityPast.size === 0)) return '';
 
     // 실측이 있는 행만 통계 계산
     const resolved = rows.filter(r => r.actual_high !== null && r.error !== null);
@@ -1354,54 +1353,137 @@ function renderForecastAccuracy(rows: ForecastAccuracyRow[]): string {
         bias = resolved.reduce((sum, r) => sum + (r.error || 0), 0) / totalRecords;
     }
 
-    // 카드 렌더링 (최근순)
-    const allCards = rows.slice(0, 14);
+    // 예보 정확도 행을 날짜별 맵으로 변환
+    const accByDate = new Map<string, ForecastAccuracyRow>();
+    for (const row of rows) {
+        accByDate.set(row.market_date, row);
+    }
 
-    const cardsHtml = allCards.map(row => {
-        const d = new Date(row.market_date + 'T12:00:00');
+    // 과거 마켓 결과를 날짜별로
+    const pastByDate = new Map<string, WeatherMarket[]>();
+    if (cityPast) {
+        for (const [dateStr, markets] of cityPast.entries()) {
+            pastByDate.set(dateStr, markets);
+        }
+    }
+
+    // 모든 날짜 합치기 (중복 제거, 최근순)
+    const allDates = new Set<string>();
+    for (const row of rows) allDates.add(row.market_date);
+    if (cityPast) {
+        for (const dateStr of cityPast.keys()) allDates.add(dateStr);
+    }
+    const sortedDates = [...allDates].sort((a, b) => b.localeCompare(a)).slice(0, 14);
+
+    // 통합 카드 렌더링
+    const cardsHtml = sortedDates.map(dateStr => {
+        const d = new Date(dateStr + 'T12:00:00');
         const displayDate = `${d.getMonth() + 1}/${d.getDate()}`;
-        const isResolved = row.actual_high !== null;
+        const accRow = accByDate.get(dateStr);
+        const pastMarkets = pastByDate.get(dateStr);
 
-        if (!isResolved) {
-            return `
-                <div class="wt-acc-card pending">
-                    <div class="wt-acc-card-date">${displayDate}</div>
-                    <div class="wt-acc-card-badge pending">대기</div>
-                    <div class="wt-acc-card-forecast">
-                        <span class="wt-acc-label">예보</span>
-                        <span class="wt-acc-value">${row.forecast_high !== null ? Math.round(row.forecast_high) + '°' : '-'}</span>
-                    </div>
-                    <div class="wt-acc-card-actual">
-                        <span class="wt-acc-label">실측</span>
-                        <span class="wt-acc-value dim">—</span>
+        // 과거 마켓 결과 요약
+        let marketResultHtml = '';
+        if (pastMarkets && pastMarkets.length > 0) {
+            const sorted = [...pastMarkets].sort((a, b) => b.prob - a.prob);
+            const topMarket = sorted[0];
+            const isResolved = topMarket.prob >= 0.9;
+
+            let resultTemp = '';
+            if (topMarket.comparison === 'exact' || topMarket.comparison === 'between') {
+                resultTemp = `${topMarket.targetTemp}°`;
+            } else if (topMarket.comparison === 'above') {
+                resultTemp = `${topMarket.targetTemp}°+`;
+            } else {
+                resultTemp = `≤${topMarket.targetTemp}°`;
+            }
+
+            const topThree = sorted.slice(0, 3);
+            marketResultHtml = `
+                <div class="wt-acc-card-market">
+                    <div class="wt-acc-card-market-badge ${isResolved ? 'resolved' : 'pending'}">${isResolved ? '종료' : '미확정'}</div>
+                    <div class="wt-acc-card-market-result">${resultTemp}</div>
+                    <div class="wt-acc-card-market-details">
+                        ${topThree.map(m => {
+                            let l = '';
+                            if (m.comparison === 'exact') l = `${m.targetTemp}°`;
+                            else if (m.comparison === 'above') l = `${m.targetTemp}°+`;
+                            else if (m.comparison === 'below') l = `${m.targetTemp}°↓`;
+                            else l = `~${m.targetTemp}°`;
+                            const pct = (m.prob * 100).toFixed(0);
+                            const icon = m.prob >= 0.9 ? '✓' : m.prob <= 0.1 ? '✗' : '';
+                            const cls = m.prob >= 0.9 ? 'yes' : m.prob <= 0.1 ? 'no' : '';
+                            return `<div class="wt-past-line ${cls}"><span>${escapeHtml(l)}</span><span>${pct}% ${icon}</span></div>`;
+                        }).join('')}
                     </div>
                 </div>
             `;
         }
 
-        const err = row.error || 0;
-        const absErr = Math.abs(err);
-        let errClass = 'exact';
-        if (absErr > 2) errClass = 'far';
-        else if (absErr > 0) errClass = err > 0 ? 'over' : 'under';
+        // 예보 정확도 데이터가 있는 경우
+        if (accRow) {
+            const isAccResolved = accRow.actual_high !== null;
 
-        const errSign = err > 0 ? '+' : '';
-        const errLabel = absErr === 0 ? '정확' : `${errSign}${err.toFixed(1)}°`;
+            if (!isAccResolved) {
+                return `
+                    <div class="wt-acc-card pending">
+                        <div class="wt-acc-card-date">${displayDate}</div>
+                        <div class="wt-acc-card-badge pending">대기</div>
+                        <div class="wt-acc-card-forecast">
+                            <span class="wt-acc-label">예보</span>
+                            <span class="wt-acc-value">${accRow.forecast_high !== null ? Math.round(accRow.forecast_high) + '°' : '-'}</span>
+                        </div>
+                        <div class="wt-acc-card-actual">
+                            <span class="wt-acc-label">실측</span>
+                            <span class="wt-acc-value dim">—</span>
+                        </div>
+                        ${marketResultHtml}
+                    </div>
+                `;
+            }
 
-        return `
-            <div class="wt-acc-card ${errClass}">
-                <div class="wt-acc-card-date">${displayDate}</div>
-                <div class="wt-acc-card-badge ${errClass}">${errLabel}</div>
-                <div class="wt-acc-card-forecast">
-                    <span class="wt-acc-label">예보</span>
-                    <span class="wt-acc-value">${Math.round(row.forecast_high!)}°</span>
+            const err = accRow.error || 0;
+            const absErr = Math.abs(err);
+            let errClass = 'exact';
+            if (absErr > 2) errClass = 'far';
+            else if (absErr > 0) errClass = err > 0 ? 'over' : 'under';
+
+            const errSign = err > 0 ? '+' : '';
+            const errLabel = absErr === 0 ? '정확' : `${errSign}${err.toFixed(1)}°`;
+
+            return `
+                <div class="wt-acc-card ${errClass}">
+                    <div class="wt-acc-card-date">${displayDate}</div>
+                    <div class="wt-acc-card-badge ${errClass}">${errLabel}</div>
+                    <div class="wt-acc-card-forecast">
+                        <span class="wt-acc-label">예보</span>
+                        <span class="wt-acc-value">${Math.round(accRow.forecast_high!)}°</span>
+                    </div>
+                    <div class="wt-acc-card-actual">
+                        <span class="wt-acc-label">실측</span>
+                        <span class="wt-acc-value">${Math.round(accRow.actual_high!)}°</span>
+                    </div>
+                    ${marketResultHtml}
                 </div>
-                <div class="wt-acc-card-actual">
-                    <span class="wt-acc-label">실측</span>
-                    <span class="wt-acc-value">${Math.round(row.actual_high!)}°</span>
+            `;
+        }
+
+        // 예보 정확도 데이터 없이 과거 마켓 결과만 있는 경우 (3/17 이전)
+        if (pastMarkets && pastMarkets.length > 0) {
+            const sorted = [...pastMarkets].sort((a, b) => b.prob - a.prob);
+            const topMarket = sorted[0];
+            const isResolved = topMarket.prob >= 0.9;
+
+            return `
+                <div class="wt-acc-card ${isResolved ? 'past-resolved' : 'pending'}">
+                    <div class="wt-acc-card-date">${displayDate}</div>
+                    <div class="wt-acc-card-badge ${isResolved ? 'past-resolved' : 'pending'}">${isResolved ? '종료' : '미확정'}</div>
+                    ${marketResultHtml}
                 </div>
-            </div>
-        `;
+            `;
+        }
+
+        return '';
     }).join('');
 
     // 편향 방향 텍스트
@@ -1411,7 +1493,7 @@ function renderForecastAccuracy(rows: ForecastAccuracyRow[]): string {
     return `
         <div class="wt-section wt-accuracy-section">
             <div class="wt-section-header">
-                <span class="wt-section-title">FORECAST ACCURACY</span>
+                <span class="wt-section-title">PAST RESULTS & FORECAST</span>
                 <span class="wt-section-badge">기상청(KMA) 예보 vs 실측</span>
             </div>
             <div class="wt-accuracy-body">

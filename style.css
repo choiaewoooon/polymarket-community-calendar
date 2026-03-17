@@ -4167,7 +4167,7 @@ body.admin-mode .container {
     color: var(--text-muted);
     margin-bottom: 8px;
     padding: 4px 0;
-    opacity: 0.7;
+    opacity: 0.9;
 }
 
 .wt-chart-disclaimer a {
@@ -4183,7 +4183,7 @@ body.admin-mode .container {
     width: 100%;
     height: auto;
     display: block;
-    opacity: 0.4;
+    opacity: 0.85;
     transition: opacity var(--transition-fast);
 }
 
@@ -4204,7 +4204,7 @@ body.admin-mode .container {
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -4329,7 +4329,7 @@ body.admin-mode .container {
 /* ─── 마감 섹션 스타일 ─── */
 
 .wt-section-closed {
-    opacity: 0.55;
+    opacity: 0.7;
     position: relative;
 }
 
@@ -4445,7 +4445,7 @@ body.admin-mode .container {
 /* 카드 */
 .wt-acc-card {
     flex-shrink: 0;
-    width: 90px;
+    width: 120px;
     padding: 10px 8px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -4474,7 +4474,7 @@ body.admin-mode .container {
     background: rgba(239, 68, 68, 0.08);
 }
 .wt-acc-card.pending {
-    opacity: 0.6;
+    opacity: 0.8;
     border-style: dashed;
 }
 
@@ -4533,6 +4533,57 @@ body.admin-mode .container {
 }
 .wt-acc-value.dim {
     color: var(--text-muted);
+}
+
+/* 과거 종료 카드 (예보 데이터 없음) */
+.wt-acc-card.past-resolved {
+    border-color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
+}
+.wt-acc-card-badge.past-resolved {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
+/* 카드 내 마켓 결과 영역 */
+.wt-acc-card-market {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.wt-acc-card-market-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+}
+.wt-acc-card-market-badge.resolved {
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+.wt-acc-card-market-badge.pending {
+    color: var(--accent-yellow);
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+}
+.wt-acc-card-market-result {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+}
+.wt-acc-card-market-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
 }
 
 /* 통계 패널 */
@@ -4648,9 +4699,9 @@ body.admin-mode .container {
     transition: width 0.5s ease;
 }
 
-.wt-prob-bar-fill.high { background: var(--accent-green); opacity: 0.7; }
-.wt-prob-bar-fill.mid { background: var(--accent-cyan); opacity: 0.5; }
-.wt-prob-bar-fill.low { background: var(--border-color-strong); opacity: 0.4; }
+.wt-prob-bar-fill.high { background: var(--accent-green); opacity: 0.85; }
+.wt-prob-bar-fill.mid { background: var(--accent-cyan); opacity: 0.7; }
+.wt-prob-bar-fill.low { background: var(--border-color-strong); opacity: 0.55; }
 
 .wt-prob-pct {
     font-family: var(--font-mono);
