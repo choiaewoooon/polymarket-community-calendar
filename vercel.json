@@ -8,11 +8,19 @@
       "destination": "https://gamma-api.polymarket.com/:path*"
     },
     {
+      "source": "/api/kma/:path*",
+      "destination": "https://apihub.kma.go.kr/api/:path*"
+    },
+    {
       "source": "/99market",
       "destination": "/index.html"
     },
     {
       "source": "/komarket",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/live",
       "destination": "/index.html"
     }
   ]

@@ -68,6 +68,13 @@
                 </svg>
                 <span>한국 예측 모아보기</span>
             </button>
+            <button class="page-tab" data-tab="live">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>라이브 트래커</span>
+            </button>
         </div>
 
         <!-- Data Range Info Banner -->
@@ -254,6 +261,58 @@
             </div>
             <div class="korea-cards-grid" id="koreaCardsGrid">
                 <!-- Korea market cards rendered by JS -->
+            </div>
+        </div>
+
+        <!-- Live Tracker Section (hidden by default) -->
+        <div class="live-view-section" id="liveViewSection" style="display:none;">
+            <div class="live-view-header">
+                <div class="live-header-left">
+                    <h2 class="live-view-title">라이브 트래커</h2>
+                    <span class="live-view-subtitle">시장 × 실시간 데이터</span>
+                    <span class="live-badge">
+                        <span class="live-badge-dot"></span>
+                        <span>LIVE</span>
+                    </span>
+                </div>
+            </div>
+            <div class="live-sub-tabs">
+                <button class="live-sub-tab active" data-subtab="weather">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                    </svg>
+                    날씨
+                </button>
+                <button class="live-sub-tab disabled" data-subtab="crypto" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    크립토
+                    <span class="coming-soon-badge">soon</span>
+                </button>
+                <button class="live-sub-tab disabled" data-subtab="finance" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                        <polyline points="16 7 22 7 22 13"></polyline>
+                    </svg>
+                    금융
+                    <span class="coming-soon-badge">soon</span>
+                </button>
+                <button class="live-sub-tab disabled" data-subtab="rates" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    금리
+                    <span class="coming-soon-badge">soon</span>
+                </button>
+            </div>
+            <div class="live-content" id="liveContent">
+                <!-- 도시 위젯 + 인라인 확장 영역이 JS로 렌더됨 -->
+                <div class="live-loading">
+                    <div class="live-loading-spinner"></div>
+                    <span>날씨 데이터 로드 중...</span>
+                </div>
             </div>
         </div>
 

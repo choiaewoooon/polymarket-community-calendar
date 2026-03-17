@@ -9,7 +9,8 @@ import { renderSureBetView, initSureBetListeners, stopCountdownTimer } from './r
 import { initTooltip } from './render/tooltip.ts';
 import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
-import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents } from './state.ts';
+import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents, liveWeatherEvents } from './state.ts';
+import { renderLiveTrackerView, initLiveTrackerListeners, loadLiveWeatherMarkets } from './render/liveTrackerView.ts';
 import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initV2Admin();
     initKoreaSortListeners();
     initSureBetListeners();
+    initLiveTrackerListeners();
     initPageTabs();
 
     // URL 기반 초기 탭 설정
@@ -184,12 +186,14 @@ function setupEventListeners(): void {
 const ROUTE_MAP: Record<string, PageTab> = {
     '/99market': 'surebet',
     '/komarket': 'korea',
+    '/live': 'live',
 };
 
 const TAB_TO_PATH: Record<PageTab, string> = {
     calendar: '/',
     surebet: '/99market',
     korea: '/komarket',
+    live: '/live',
 };
 
 function getTabFromPath(): PageTab {
@@ -236,6 +240,7 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
 
     const koreaSection = document.getElementById('koreaViewSection');
     const sureBetSection = document.getElementById('sureBetSection');
+    const liveSection = document.getElementById('liveViewSection');
 
     // 모든 섹션 숨김
     calendarSections.forEach(el => {
@@ -243,6 +248,7 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
     });
     if (koreaSection) koreaSection.style.display = 'none';
     if (sureBetSection) sureBetSection.style.display = 'none';
+    if (liveSection) liveSection.style.display = 'none';
 
     // surebet 탭 벗어날 때 자동 갱신 + 카운트다운 중지
     stopSureBetRefresh();
@@ -271,6 +277,14 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
             await loadKoreaData();
         }
         renderKoreaView();
+    } else if (tab === 'live') {
+        if (liveSection) liveSection.style.display = '';
+
+        // 날씨 마켓 데이터 로드 (최초 1회)
+        if (liveWeatherEvents.length === 0) {
+            await loadLiveWeatherMarkets();
+        }
+        renderLiveTrackerView();
     }
 }
 

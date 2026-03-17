@@ -28,7 +28,8 @@ export let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
 export let isAdminMode = false;
 export let v2EditingEventId: string | null = null;
 
-export type PageTab = 'calendar' | 'korea' | 'surebet';
+export type PageTab = 'calendar' | 'korea' | 'surebet' | 'live';
+export type LiveSubTab = 'weather' | 'crypto' | 'finance' | 'rates';
 export let currentTab: PageTab = 'calendar';
 export let koreaEvents: PolyEvent[] = [];
 export let koreaSort: 'endDate' | 'volume' | 'probability' = 'endDate';
@@ -40,6 +41,12 @@ export let sureBetSelectedCategory: string | null = null;
 export let sureBetRefreshInterval: ReturnType<typeof setInterval> | null = null;
 export let sureBetLastUpdate: number = 0;
 export let sureBetIsRefreshing: boolean = false;
+
+// Live Tracker 상태
+export let liveSubTab: LiveSubTab = 'weather';
+export let liveSelectedCity: string = 'Seoul';
+export let liveWeatherEvents: PolyEvent[] = [];
+export let liveWeatherData: Record<string, { temp: number; high: number; hourly: { hour: number; temp: number }[] }> = {};
 
 // ─── Setters ───
 
@@ -67,3 +74,7 @@ export function setSureBetSelectedCategory(cat: string | null): void { sureBetSe
 export function setSureBetRefreshInterval(id: ReturnType<typeof setInterval> | null): void { sureBetRefreshInterval = id; }
 export function setSureBetLastUpdate(ts: number): void { sureBetLastUpdate = ts; }
 export function setSureBetIsRefreshing(v: boolean): void { sureBetIsRefreshing = v; }
+export function setLiveSubTab(tab: LiveSubTab): void { liveSubTab = tab; }
+export function setLiveSelectedCity(city: string): void { liveSelectedCity = city; }
+export function setLiveWeatherEvents(events: PolyEvent[]): void { liveWeatherEvents = events; }
+export function setLiveWeatherData(data: Record<string, { temp: number; high: number; hourly: { hour: number; temp: number }[] }>): void { liveWeatherData = data; }

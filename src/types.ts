@@ -47,6 +47,28 @@ export type Category =
   | 'Finance'
   | 'Uncategorized';
 
+// ─── 라이브 트래커 타입 ───
+
+export interface WeatherMarket {
+  city: string;
+  targetTemp: number;
+  unit: 'C' | 'F';
+  comparison: 'above' | 'below' | 'exact' | 'between';
+  prob: number;
+  slug: string;
+  event: PolyEvent;
+}
+
+export interface CityWeatherGroup {
+  city: string;
+  stationCode: string;
+  unit: 'C' | 'F';
+  markets: WeatherMarket[];
+  currentTemp?: number;
+  todayHigh?: number;
+  hourly?: { hour: number; temp: number }[];
+}
+
 export type Language = 'ko' | 'en';
 
 export type Theme = 'dark' | 'light';

@@ -17,6 +17,11 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api\/gamma/, ''),
             },
+            '/api/kma': {
+                target: 'https://apihub.kma.go.kr',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/kma/, '/api'),
+            },
         },
     },
 });
