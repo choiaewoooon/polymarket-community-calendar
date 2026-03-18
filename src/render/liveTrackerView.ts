@@ -3,6 +3,14 @@ import type { PolyEvent, WeatherMarket, CityWeatherGroup } from '../types.ts';
 import { currentLang } from '../i18n.ts';
 import { escapeHtml } from '../utils.ts';
 
+// ─── 타임아웃 fetch ───
+
+function fetchWithTimeout(url: string, timeoutMs = 5000): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 // ─── 도시 → 관측소 매핑 (Resolution Source 기반) ───
 
 interface CityStation {
@@ -92,7 +100,7 @@ async function fetchHourlyWeather(city: string): Promise<HourlyWeather | null> {
         const units = station.unit === 'F' ? 'e' : 'm';  // e=imperial, m=metric
         const url = `https://api.weather.com/v1/location/${station.locationId}/observations/historical.json?apiKey=${WU_API_KEY}&startDate=${dateStr}&endDate=${dateStr}&units=${units}`;
 
-        const res = await fetch(url);
+        const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
 
@@ -185,7 +193,7 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
         const { base_date, base_time } = getKmaBaseTime();
         const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124&authKey=${KMA_AUTH_KEY}`;
 
-        const res = await fetch(url);
+        const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`KMA HTTP ${res.status}`);
         const json = await res.json();
 
@@ -243,7 +251,7 @@ async function fetchKmaForecastFixed(targetDate: string): Promise<HourlyWeather 
         const { base_date, base_time } = getKmaFixedBaseTime();
         const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124&authKey=${KMA_AUTH_KEY}`;
 
-        const res = await fetch(url);
+        const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`KMA HTTP ${res.status}`);
         const json = await res.json();
 
@@ -302,7 +310,7 @@ async function fetchWeatherComForecast(city: string, targetDate: string): Promis
         const units = station.unit === 'F' ? 'e' : 'm';
         const url = `https://api.weather.com/v3/wx/forecast/hourly/2day?geocode=${station.lat},${station.lon}&format=json&units=${units}&language=en-US&apiKey=${WU_API_KEY}`;
 
-        const res = await fetch(url);
+        const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
 
@@ -918,26 +926,29 @@ async function loadAndRenderWeatherChart(group: CityWeatherGroup): Promise<void>
     let dbForecastHigh: number | null = null; // DB에 저장된 05시 기준 예보 최고
     try {
         if (isToday) {
-            weather = await fetchHourlyWeather(group.city);
-            // 오늘 차트에 기상청 예보 오버레이 (05시 고정, 비교용)
-            try {
-                // DB에서 오늘 날짜의 고정된 예보 최고값 조회
-                if (group.city === 'Seoul') {
-                    const accRows = await fetchForecastAccuracy('Seoul');
-                    const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-                    const todayRow = accRows.find(r => r.market_date === todayIso);
-                    if (todayRow && todayRow.forecast_high !== null) {
-                        dbForecastHigh = todayRow.forecast_high;
-                    }
-                    // 05시 고정 API로 시간별 예보 라인 가져오기
-                    forecastOverlay = await fetchKmaForecastFixed(activeDate);
-                } else {
-                    forecastOverlay = await fetchForecastWeather(group.city, activeDate);
+            // 병렬로 실측 + 예보 + DB 예보 동시 요청
+            if (group.city === 'Seoul') {
+                const [weatherResult, accRows, forecastResult] = await Promise.all([
+                    fetchHourlyWeather(group.city).catch(() => null),
+                    fetchForecastAccuracy('Seoul').catch(() => []),
+                    fetchKmaForecastFixed(activeDate).catch(() => null),
+                ]);
+                weather = weatherResult;
+                forecastOverlay = forecastResult;
+                const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+                const todayRow = accRows.find(r => r.market_date === todayIso);
+                if (todayRow && todayRow.forecast_high !== null) {
+                    dbForecastHigh = todayRow.forecast_high;
                 }
-                console.log('📊 기상청 예보 오버레이:', forecastOverlay ? `${forecastOverlay.temps.length}시간 로드` : 'null', dbForecastHigh ? `DB 예보 최고: ${dbForecastHigh}°` : '');
-            } catch (e) {
-                console.warn('⚠️ 기상청 예보 오버레이 실패:', e);
+            } else {
+                const [weatherResult, forecastResult] = await Promise.all([
+                    fetchHourlyWeather(group.city).catch(() => null),
+                    fetchForecastWeather(group.city, activeDate).catch(() => null),
+                ]);
+                weather = weatherResult;
+                forecastOverlay = forecastResult;
             }
+            console.log('📊 기상청 예보 오버레이:', forecastOverlay ? `${forecastOverlay.temps.length}시간 로드` : 'null', dbForecastHigh ? `DB 예보 최고: ${dbForecastHigh}°` : '');
         } else {
             weather = await fetchForecastWeather(group.city, activeDate);
         }
@@ -952,6 +963,7 @@ async function loadAndRenderWeatherChart(group: CityWeatherGroup): Promise<void>
 
     try {
         chartArea.innerHTML = renderSVGChart(weather, group.city, forecastOverlay, dbForecastHigh);
+        setupChartHover(chartArea, weather, forecastOverlay);
     } catch (e) {
         console.error('❌ 차트 렌더링 실패:', e);
         chartArea.innerHTML = `<div class="wt-chart-empty">차트 렌더링 오류</div>`;
@@ -1056,6 +1068,16 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
                         <circle cx="${xOf(highIdx).toFixed(1)}" cy="${yOf(temps[highIdx]).toFixed(1)}" r="4" fill="var(--accent-orange, #f59e0b)" stroke="var(--bg-primary)" stroke-width="2"/>
                         <text x="${xOf(highIdx).toFixed(1)}" y="${(yOf(temps[highIdx]) - 8).toFixed(1)}" fill="var(--accent-orange, #f59e0b)" font-size="10" font-family="var(--font-mono)" font-weight="700" text-anchor="middle">${Math.round(temps[highIdx])}°</text>
                     ` : ''}
+
+                    <!-- 호버 인터랙션 요소 -->
+                    <line class="wt-hover-line" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--text-secondary)" stroke-width="0.8" stroke-dasharray="3,2" opacity="0" pointer-events="none"/>
+                    <circle class="wt-hover-dot-forecast" r="4" fill="var(--accent-orange, #f59e0b)" stroke="var(--bg-primary)" stroke-width="2" opacity="0" pointer-events="none"/>
+                    <g class="wt-hover-tooltip" opacity="0" pointer-events="none">
+                        <rect class="wt-hover-tooltip-bg" rx="4" ry="4" fill="var(--bg-secondary)" stroke="var(--border-color)" stroke-width="0.5" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.2))"/>
+                        <text class="wt-hover-tooltip-time" font-size="9" font-family="var(--font-mono)" font-weight="700" fill="var(--text-primary)"></text>
+                        <text class="wt-hover-tooltip-forecast" font-size="9" font-family="var(--font-mono)" fill="var(--accent-orange, #f59e0b)"></text>
+                    </g>
+                    <rect class="wt-hover-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" cursor="crosshair"/>
 
                     <defs>
                         <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1184,6 +1206,19 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
                 <line x1="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y1="${padT}" x2="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--accent-red, #ef4444)" stroke-width="1" stroke-dasharray="4,2" opacity="0.7"/>
                 <text x="${xOfHour(MARKET_CLOSE_HOUR).toFixed(1)}" y="${padT - 4}" fill="var(--accent-red, #ef4444)" font-size="8" font-family="var(--font-mono)" text-anchor="middle" opacity="0.9">CLOSE</text>
 
+                <!-- 호버 인터랙션 요소 -->
+                <line class="wt-hover-line" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--text-secondary)" stroke-width="0.8" stroke-dasharray="3,2" opacity="0" pointer-events="none"/>
+                <circle class="wt-hover-dot-actual" r="4" fill="var(--accent-cyan)" stroke="var(--bg-primary)" stroke-width="2" opacity="0" pointer-events="none"/>
+                <circle class="wt-hover-dot-forecast" r="4" fill="var(--accent-orange, #f59e0b)" stroke="var(--bg-primary)" stroke-width="2" opacity="0" pointer-events="none"/>
+                <g class="wt-hover-tooltip" opacity="0" pointer-events="none">
+                    <rect class="wt-hover-tooltip-bg" rx="4" ry="4" fill="var(--bg-secondary)" stroke="var(--border-color)" stroke-width="0.5" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.2))"/>
+                    <text class="wt-hover-tooltip-time" font-size="9" font-family="var(--font-mono)" font-weight="700" fill="var(--text-primary)"></text>
+                    <text class="wt-hover-tooltip-actual" font-size="9" font-family="var(--font-mono)" fill="var(--accent-cyan)"></text>
+                    <text class="wt-hover-tooltip-forecast" font-size="9" font-family="var(--font-mono)" fill="var(--accent-orange, #f59e0b)"></text>
+                </g>
+                <!-- 투명 오버레이 (마우스 이벤트 캡처) -->
+                <rect class="wt-hover-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" cursor="crosshair"/>
+
                 <defs>
                     <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stop-color="var(--accent-cyan)" stop-opacity="0.5"/>
@@ -1193,6 +1228,150 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
             </svg>
         </div>
     `;
+}
+
+// ─── 차트 호버 인터랙션 ───
+
+function setupChartHover(container: HTMLElement, weather: HourlyWeather, forecastOverlay?: HourlyWeather | null): void {
+    const svg = container.querySelector('.wt-chart-svg') as SVGSVGElement | null;
+    const overlay = container.querySelector('.wt-hover-overlay') as SVGRectElement | null;
+    if (!svg || !overlay) return;
+
+    const hoverLine = svg.querySelector('.wt-hover-line') as SVGLineElement;
+    const dotActual = svg.querySelector('.wt-hover-dot-actual') as SVGCircleElement | null;
+    const dotForecast = svg.querySelector('.wt-hover-dot-forecast') as SVGCircleElement | null;
+    const tooltip = svg.querySelector('.wt-hover-tooltip') as SVGGElement;
+    const tooltipBg = svg.querySelector('.wt-hover-tooltip-bg') as SVGRectElement;
+    const tooltipTime = svg.querySelector('.wt-hover-tooltip-time') as SVGTextElement;
+    const tooltipActual = svg.querySelector('.wt-hover-tooltip-actual') as SVGTextElement | null;
+    const tooltipForecast = svg.querySelector('.wt-hover-tooltip-forecast') as SVGTextElement | null;
+
+    if (!hoverLine || !tooltip || !tooltipBg || !tooltipTime) return;
+
+    const { hours, temps, unit } = weather;
+    const W = 600, H = 200;
+    const padL = 40, padR = 16, padT = 24, padB = 28;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const MARKET_CLOSE_HOUR = 21;
+
+    const allTemps = [...temps, ...(forecastOverlay ? forecastOverlay.temps : [])];
+    const minT = Math.floor(Math.min(...allTemps) - 2);
+    const maxT = Math.ceil(Math.max(...allTemps) + 2);
+    const rangeT = maxT - minT || 1;
+    const yOf = (t: number) => padT + plotH - ((t - minT) / rangeT) * plotH;
+
+    // 시간 → 온도 맵 (실측)
+    const actualByHour = new Map<number, number>();
+    for (let i = 0; i < hours.length; i++) {
+        const h = parseInt(hours[i].split(':')[0]);
+        actualByHour.set(h, temps[i]);
+    }
+
+    // 시간 → 온도 맵 (예보)
+    const forecastByHour = new Map<number, number>();
+    if (forecastOverlay) {
+        for (let i = 0; i < forecastOverlay.hours.length; i++) {
+            const h = parseInt(forecastOverlay.hours[i].split(':')[0]);
+            forecastByHour.set(h, forecastOverlay.temps[i]);
+        }
+    }
+
+    function showHover(e: MouseEvent) {
+        const rect = svg!.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * W;
+        // X → 시간 변환
+        const hour = Math.round(((x - padL) / plotW) * MARKET_CLOSE_HOUR);
+        const clampedHour = Math.max(0, Math.min(MARKET_CLOSE_HOUR, hour));
+        const svgX = padL + (clampedHour / MARKET_CLOSE_HOUR) * plotW;
+
+        // 세로선
+        hoverLine.setAttribute('x1', svgX.toFixed(1));
+        hoverLine.setAttribute('x2', svgX.toFixed(1));
+        hoverLine.setAttribute('opacity', '1');
+
+        const actualTemp = actualByHour.get(clampedHour);
+        const forecastTemp = forecastByHour.get(clampedHour);
+
+        // 실측 점
+        if (dotActual && actualTemp !== undefined) {
+            dotActual.setAttribute('cx', svgX.toFixed(1));
+            dotActual.setAttribute('cy', yOf(actualTemp).toFixed(1));
+            dotActual.setAttribute('opacity', '1');
+        } else if (dotActual) {
+            dotActual.setAttribute('opacity', '0');
+        }
+
+        // 예보 점
+        if (dotForecast && forecastTemp !== undefined) {
+            dotForecast.setAttribute('cx', svgX.toFixed(1));
+            dotForecast.setAttribute('cy', yOf(forecastTemp).toFixed(1));
+            dotForecast.setAttribute('opacity', '1');
+        } else if (dotForecast) {
+            dotForecast.setAttribute('opacity', '0');
+        }
+
+        // 툴팁 텍스트
+        const timeStr = `${clampedHour}:00`;
+        tooltipTime.textContent = timeStr;
+
+        let lineCount = 1;
+        if (tooltipActual) {
+            if (actualTemp !== undefined) {
+                tooltipActual.textContent = `실측 ${Math.round(actualTemp)}°${unit}`;
+                lineCount++;
+            } else {
+                tooltipActual.textContent = '';
+            }
+        }
+        if (tooltipForecast) {
+            if (forecastTemp !== undefined) {
+                tooltipForecast.textContent = `예보 ${Math.round(forecastTemp)}°${unit}`;
+                lineCount++;
+            } else {
+                tooltipForecast.textContent = '';
+            }
+        }
+
+        // 툴팁 위치 & 크기
+        const tooltipW = 90;
+        const tooltipH = 14 + lineCount * 13;
+        let tx = svgX + 8;
+        if (tx + tooltipW > W - padR) tx = svgX - tooltipW - 8;
+        const ty = padT + 8;
+
+        tooltipBg.setAttribute('x', tx.toFixed(1));
+        tooltipBg.setAttribute('y', ty.toFixed(1));
+        tooltipBg.setAttribute('width', tooltipW.toString());
+        tooltipBg.setAttribute('height', tooltipH.toString());
+
+        tooltipTime.setAttribute('x', (tx + 8).toFixed(1));
+        tooltipTime.setAttribute('y', (ty + 13).toFixed(1));
+
+        let textY = ty + 13;
+        if (tooltipActual && actualTemp !== undefined) {
+            textY += 13;
+            tooltipActual.setAttribute('x', (tx + 8).toFixed(1));
+            tooltipActual.setAttribute('y', textY.toFixed(1));
+        }
+        if (tooltipForecast && forecastTemp !== undefined) {
+            textY += 13;
+            tooltipForecast.setAttribute('x', (tx + 8).toFixed(1));
+            tooltipForecast.setAttribute('y', textY.toFixed(1));
+        }
+
+        tooltip.setAttribute('opacity', '1');
+    }
+
+    function hideHover() {
+        hoverLine.setAttribute('opacity', '0');
+        if (dotActual) dotActual.setAttribute('opacity', '0');
+        if (dotForecast) dotForecast.setAttribute('opacity', '0');
+        tooltip.setAttribute('opacity', '0');
+    }
+
+    overlay.addEventListener('mousemove', showHover);
+    overlay.addEventListener('mouseleave', hideHover);
 }
 
 // ─── FDV 스타일 확률 행 ───

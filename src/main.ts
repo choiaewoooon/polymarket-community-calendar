@@ -294,10 +294,19 @@ function initHeaderShrink(): void {
     if (!header) return;
 
     let ticking = false;
+    let isScrolled = false;
     window.addEventListener('scroll', () => {
         if (!ticking) {
             requestAnimationFrame(() => {
-                header.classList.toggle('scrolled', window.scrollY > 30);
+                // hysteresis: 50px에서 축소, 10px 이하에서 복원 (진동 방지)
+                const y = window.scrollY;
+                if (!isScrolled && y > 50) {
+                    isScrolled = true;
+                    header.classList.add('scrolled');
+                } else if (isScrolled && y < 10) {
+                    isScrolled = false;
+                    header.classList.remove('scrolled');
+                }
                 ticking = false;
             });
             ticking = true;

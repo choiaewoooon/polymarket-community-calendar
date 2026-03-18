@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+    esbuild: {
+        drop: ['console', 'debugger'],
+    },
     build: {
         rollupOptions: {
             input: {
