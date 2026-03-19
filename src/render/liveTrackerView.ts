@@ -1145,9 +1145,13 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
             fHigh = fTempsInRange.length > 0 ? Math.max(...fTempsInRange) : Math.max(...fTemps);
         }
         forecastOverlayHighLabel = `예보 최고 ${Math.round(fHigh)}°`;
+    } else if (dbForecastHigh !== null && dbForecastHigh !== undefined) {
+        // KMA API 실패 시에도 DB 예보 최고기온이 있으면 라벨만 표시
+        forecastOverlayHighLabel = `예보 최고 ${Math.round(dbForecastHigh)}°`;
     }
 
     const hasOverlay = forecastOverlayPath.length > 0;
+    const hasForecastLabel = forecastOverlayHighLabel.length > 0;
 
     return `
         <div class="wt-chart-wrap">
@@ -1160,7 +1164,7 @@ function renderSVGChart(weather: HourlyWeather, city: string, forecastOverlay?: 
                     <span class="wt-chart-now-temp">${Math.round(currentTemp)}°${unit}</span>
                     <span class="wt-chart-now-label">현재 (실측)</span>
                 </div>
-                ${hasOverlay ? `
+                ${hasForecastLabel ? `
                 <div class="wt-chart-high">
                     <span class="wt-chart-high-temp" style="color: var(--accent-orange, #f59e0b); font-size: 0.95rem">${forecastOverlayHighLabel}</span>
                     <span class="wt-chart-high-label">기상청 예보 (05시)</span>
@@ -1546,18 +1550,32 @@ function renderForecastAccuracy(rows: ForecastAccuracyRow[], cityPast?: Map<stri
         }
     }
 
-    // 모든 날짜 합치기 (중복 제거, 최근순)
+    // 오늘 기준 과거 5일 ~ 미래 5일 범위로 필터
+    const todayKst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const todayIso = `${todayKst.getFullYear()}-${String(todayKst.getMonth() + 1).padStart(2, '0')}-${String(todayKst.getDate()).padStart(2, '0')}`;
+    const rangeStart = new Date(todayKst);
+    rangeStart.setDate(rangeStart.getDate() - 5);
+    const rangeEnd = new Date(todayKst);
+    rangeEnd.setDate(rangeEnd.getDate() + 5);
+    const rangeStartIso = `${rangeStart.getFullYear()}-${String(rangeStart.getMonth() + 1).padStart(2, '0')}-${String(rangeStart.getDate()).padStart(2, '0')}`;
+    const rangeEndIso = `${rangeEnd.getFullYear()}-${String(rangeEnd.getMonth() + 1).padStart(2, '0')}-${String(rangeEnd.getDate()).padStart(2, '0')}`;
+
+    // 모든 날짜 합치기 (중복 제거, 범위 내만)
     const allDates = new Set<string>();
     for (const row of rows) allDates.add(row.market_date);
     if (cityPast) {
         for (const dateStr of cityPast.keys()) allDates.add(dateStr);
     }
-    const sortedDates = [...allDates].sort((a, b) => b.localeCompare(a)).slice(0, 14);
+    const sortedDates = [...allDates]
+        .filter(d => d >= rangeStartIso && d <= rangeEndIso)
+        .sort((a, b) => b.localeCompare(a));
 
     // 통합 카드 렌더링
     const cardsHtml = sortedDates.map(dateStr => {
         const d = new Date(dateStr + 'T12:00:00');
         const displayDate = `${d.getMonth() + 1}/${d.getDate()}`;
+        const isToday = dateStr === todayIso;
+        const isFuture = dateStr > todayIso;
         const accRow = accByDate.get(dateStr);
         const pastMarkets = pastByDate.get(dateStr);
 
@@ -1604,18 +1622,20 @@ function renderForecastAccuracy(rows: ForecastAccuracyRow[], cityPast?: Map<stri
             const isAccResolved = accRow.actual_high !== null;
 
             if (!isAccResolved) {
+                const pendingLabel = isToday ? '오늘' : isFuture ? '예정' : '대기';
+                const pendingClass = isToday ? 'today' : isFuture ? 'future' : 'pending';
                 return `
-                    <div class="wt-acc-card pending">
-                        <div class="wt-acc-card-date">${displayDate}</div>
-                        <div class="wt-acc-card-badge pending">대기</div>
+                    <div class="wt-acc-card ${pendingClass}${isToday ? ' wt-acc-today' : ''}">
+                        <div class="wt-acc-card-date">${displayDate}${isToday ? ' <span class="wt-today-dot"></span>' : ''}</div>
+                        <div class="wt-acc-card-badge ${pendingClass}">${pendingLabel}</div>
                         <div class="wt-acc-card-forecast">
                             <span class="wt-acc-label">예보</span>
                             <span class="wt-acc-value">${accRow.forecast_high !== null ? Math.round(accRow.forecast_high) + '°' : '-'}</span>
                         </div>
-                        <div class="wt-acc-card-actual">
+                        ${!isFuture ? `<div class="wt-acc-card-actual">
                             <span class="wt-acc-label">실측</span>
                             <span class="wt-acc-value dim">—</span>
-                        </div>
+                        </div>` : ''}
                         ${marketResultHtml}
                     </div>
                 `;

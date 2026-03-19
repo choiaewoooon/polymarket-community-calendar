@@ -4477,6 +4477,33 @@ body.admin-mode .container {
     opacity: 0.8;
     border-style: dashed;
 }
+.wt-acc-card.today {
+    border-color: var(--accent-cyan, #06b6d4);
+    border-width: 2px;
+    border-style: solid;
+    opacity: 1;
+}
+.wt-acc-card.future {
+    opacity: 0.5;
+    border-style: dotted;
+}
+.wt-acc-card-badge.today {
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--accent-cyan, #06b6d4);
+}
+.wt-acc-card-badge.future {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+}
+.wt-today-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-cyan, #06b6d4);
+    vertical-align: middle;
+    margin-left: 3px;
+}
 
 .wt-acc-card-date {
     font-family: var(--font-mono);

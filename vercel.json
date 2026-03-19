@@ -2,6 +2,12 @@
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron-weather",
+      "schedule": "0 21,13 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/gamma/:path*",
