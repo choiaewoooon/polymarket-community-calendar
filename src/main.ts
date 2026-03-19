@@ -79,14 +79,10 @@ function setupEventListeners(): void {
         });
     }
 
-    // Refresh button
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleRefresh();
-        });
+    // Admin 버튼: ?admin=1 URL 파라미터로만 표시
+    const adminToggle = document.getElementById('adminToggle');
+    if (adminToggle && new URLSearchParams(window.location.search).has('admin')) {
+        adminToggle.style.display = '';
     }
 
     // Calendar Overview navigation
@@ -230,10 +226,6 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
         btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
     });
 
-    // 캘린더 전용 버튼 표시/숨김
-    const densityToggle = document.getElementById('densityToggle');
-    if (densityToggle) densityToggle.style.display = tab === 'calendar' ? '' : 'none';
-
     // 캘린더 관련 섹션들 (info-banner, toolbar 제거됨 — Phase 1 리뉴얼)
     const calendarSections = [
         document.querySelector('.quick-filters'),
@@ -334,14 +326,3 @@ function initMobileAccordion(): void {
     });
 }
 
-function handleRefresh(): void {
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) refreshBtn.classList.add('rotating');
-
-    const searchQuery = (document.getElementById('searchInput') as HTMLInputElement).value;
-    renderCalendar(searchQuery);
-
-    setTimeout(() => {
-        if (refreshBtn) refreshBtn.classList.remove('rotating');
-    }, 500);
-}
