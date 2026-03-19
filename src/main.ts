@@ -1,5 +1,5 @@
 import { initSupabase } from './supabase.ts';
-import { initTheme, initDensity, toggleTheme, toggleDensity } from './theme.ts';
+import { initTheme, initDensity, toggleTheme, toggleDensity, updateDensityIcon } from './theme.ts';
 import { initLanguage, translations, currentLang } from './i18n.ts';
 import { initQuickFilters, openFilterModal, closeFilterModal, setupFilterOptions, applyFilters, resetFilters, clearAllFilters, renderFilterTags, updateActiveFiltersDisplay } from './filters.ts';
 import { loadData, loadMoreData, loadKoreaData, loadSureBetData, startSureBetRefresh, stopSureBetRefresh } from './data.ts';
@@ -62,6 +62,7 @@ function setupEventListeners(): void {
     // Density toggle
     const densityToggle = document.getElementById('densityToggle');
     if (densityToggle) {
+        updateDensityIcon();
         densityToggle.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();

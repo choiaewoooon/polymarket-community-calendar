@@ -736,17 +736,26 @@ body::after {
     gap: 10px;
 }
 .icon-btn-sm {
-    width: 28px;
-    height: 28px;
-    padding: 0;
+    height: 26px;
+    padding: 0 8px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 5px;
     opacity: 0.5;
     transition: opacity 0.15s;
+    border-radius: 6px;
 }
 .icon-btn-sm:hover {
     opacity: 1;
+    background: var(--bg-hover, rgba(255,255,255,0.06));
+}
+.density-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
 }
 
 .week-title {
