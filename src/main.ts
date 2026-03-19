@@ -230,6 +230,10 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
         btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
     });
 
+    // 캘린더 전용 버튼 표시/숨김
+    const densityToggle = document.getElementById('densityToggle');
+    if (densityToggle) densityToggle.style.display = tab === 'calendar' ? '' : 'none';
+
     // 캘린더 관련 섹션들 (info-banner, toolbar 제거됨 — Phase 1 리뉴얼)
     const calendarSections = [
         document.querySelector('.quick-filters'),
