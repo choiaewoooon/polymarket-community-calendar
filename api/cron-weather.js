@@ -92,7 +92,8 @@ async function captureForecasts(sb) {
     const now = kstNow();
     const results = [];
 
-    for (let offset = 0; offset < 5; offset++) {
+    // 과거 5일 ~ 미래 4일 범위 (누락분 백필 포함)
+    for (let offset = -5; offset < 5; offset++) {
         const target = new Date(now);
         target.setDate(target.getDate() + offset);
         const isoDate = formatIso(target);
@@ -124,7 +125,7 @@ async function captureForecasts(sb) {
                 forecast_source: 'KMA',
             }, { onConflict: 'city,market_date' });
 
-            results.push({ date: isoDate, status: 'captured', value: forecastHigh });
+            results.push({ date: isoDate, status: offset < 0 ? 'backfilled' : 'captured', value: forecastHigh });
         } catch (e) {
             results.push({ date: isoDate, status: 'error', error: e.message });
         }
