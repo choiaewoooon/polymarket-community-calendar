@@ -143,7 +143,7 @@ async function resolveActuals(sb) {
         .select('*')
         .eq('city', 'Seoul')
         .is('actual_high', null)
-        .lt('market_date', today);
+        .lte('market_date', today);
 
     if (!pending || pending.length === 0) {
         return [{ status: 'all_resolved' }];
