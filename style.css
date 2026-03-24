@@ -148,6 +148,161 @@ body::after {
 }
 
 /* ═══════════════════════════════════════════
+   SCATTERED PHOTO COLLAGE — B급 but 세련
+   Punk zine meets gallery wall
+   ═══════════════════════════════════════════ */
+
+.collage-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.collage-photo {
+    position: absolute;
+    overflow: hidden;
+    border: 3px solid rgba(212, 160, 23, 0.15);
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.5),
+        inset 0 0 30px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.collage-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(0.6) contrast(1.3) brightness(0.7);
+    transition: filter 0.6s ease;
+}
+
+[data-theme="light"] .collage-photo {
+    border-color: rgba(160, 124, 19, 0.12);
+    box-shadow:
+        0 4px 20px rgba(26, 20, 16, 0.15),
+        inset 0 0 20px rgba(26, 20, 16, 0.1);
+}
+
+[data-theme="light"] .collage-photo img {
+    filter: grayscale(0.4) sepia(0.3) contrast(1.1) brightness(0.85);
+}
+
+/* 각 사진의 위치/크기/회전 — 의도된 카오스 */
+
+.collage-1 {
+    width: 180px; height: 120px;
+    top: 5%; left: -2%;
+    transform: rotate(-8deg);
+    opacity: 0.12;
+}
+
+.collage-2 {
+    width: 140px; height: 200px;
+    top: 15%; right: 2%;
+    transform: rotate(5deg);
+    opacity: 0.1;
+}
+
+.collage-3 {
+    width: 200px; height: 130px;
+    top: 45%; left: 3%;
+    transform: rotate(3deg);
+    opacity: 0.09;
+}
+
+.collage-4 {
+    width: 160px; height: 160px;
+    top: 60%; right: -1%;
+    transform: rotate(-6deg);
+    opacity: 0.11;
+}
+
+.collage-5 {
+    width: 220px; height: 140px;
+    bottom: 15%; left: 8%;
+    transform: rotate(7deg);
+    opacity: 0.08;
+}
+
+.collage-6 {
+    width: 170px; height: 110px;
+    bottom: 5%; right: 5%;
+    transform: rotate(-4deg);
+    opacity: 0.1;
+}
+
+.collage-7 {
+    width: 130px; height: 130px;
+    top: 30%; left: 15%;
+    transform: rotate(-12deg);
+    opacity: 0.07;
+}
+
+.collage-8 {
+    width: 150px; height: 180px;
+    top: 8%; left: 40%;
+    transform: rotate(9deg);
+    opacity: 0.06;
+}
+
+.collage-9 {
+    width: 190px; height: 120px;
+    bottom: 30%; right: 12%;
+    transform: rotate(-3deg);
+    opacity: 0.08;
+}
+
+.collage-10 {
+    width: 140px; height: 170px;
+    bottom: 40%; left: -3%;
+    transform: rotate(11deg);
+    opacity: 0.1;
+}
+
+/* 스크롤 시 사진들이 미묘하게 부유하는 느낌 — parallax lite */
+@keyframes collage-float-1 {
+    0%, 100% { transform: rotate(-8deg) translate(0, 0); }
+    50% { transform: rotate(-8deg) translate(5px, -8px); }
+}
+@keyframes collage-float-2 {
+    0%, 100% { transform: rotate(5deg) translate(0, 0); }
+    50% { transform: rotate(5deg) translate(-6px, 6px); }
+}
+@keyframes collage-float-3 {
+    0%, 100% { transform: rotate(3deg) translate(0, 0); }
+    50% { transform: rotate(3deg) translate(4px, -5px); }
+}
+
+.collage-1 { animation: collage-float-1 12s ease-in-out infinite; }
+.collage-2 { animation: collage-float-2 15s ease-in-out infinite 1s; }
+.collage-3 { animation: collage-float-3 18s ease-in-out infinite 2s; }
+.collage-4 { animation: collage-float-2 14s ease-in-out infinite 3s; }
+.collage-5 { animation: collage-float-1 16s ease-in-out infinite 4s; }
+.collage-6 { animation: collage-float-3 13s ease-in-out infinite 0.5s; }
+.collage-7 { animation: collage-float-2 17s ease-in-out infinite 2.5s; }
+.collage-8 { animation: collage-float-1 19s ease-in-out infinite 1.5s; }
+.collage-9 { animation: collage-float-3 14s ease-in-out infinite 3.5s; }
+.collage-10 { animation: collage-float-2 11s ease-in-out infinite 0.8s; }
+
+/* 모바일: 사진 더 작게, 양 줄임 */
+@media (max-width: 600px) {
+    .collage-photo {
+        transform: scale(0.6);
+    }
+    .collage-7, .collage-8, .collage-9 {
+        display: none;
+    }
+}
+
+/* 콘텐츠가 콜라주 위에 오도록 */
+.landing, .app-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* ═══════════════════════════════════════════
    LANDING PAGE
    ═══════════════════════════════════════════ */
 
@@ -6055,28 +6210,7 @@ body.admin-mode .container {
     letter-spacing: 0.04em;
 }
 
-/* Lemmy 배경을 앱 전체 고정 배경으로 */
-.app-container {
-    position: relative;
-}
-
-.app-container::after {
-    content: '';
-    position: fixed;
-    bottom: -100px;
-    right: -100px;
-    width: 500px;
-    height: 500px;
-    background-image: url('/img/bands/lemmy.jpg');
-    background-size: cover;
-    opacity: 0.03;
-    filter: grayscale(1);
-    pointer-events: none;
-    z-index: 0;
-    border-radius: 50%;
-    mask-image: radial-gradient(circle, black 30%, transparent 70%);
-    -webkit-mask-image: radial-gradient(circle, black 30%, transparent 70%);
-}
+/* 콜라주 레이어가 대체 — Lemmy는 collage-10에 포함 */
 
 /* 섹션 내부 콘텐츠는 배경 위에 */
 .week-header,
