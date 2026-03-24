@@ -5984,7 +5984,10 @@ body.admin-mode .container {
 }
 
 .mobile-day-events {
-    padding: 0 8px 8px;
+    padding: 0 12px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .mobile-day-events .week-event {
@@ -5995,6 +5998,24 @@ body.admin-mode .container {
 @media (max-width: 768px) {
     .week-timeline {
         min-height: auto;
+        flex-direction: column;
+    }
+
+    .mobile-day-events {
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .mobile-day-events .week-event {
+        width: 100%;
+        box-sizing: border-box;
+        flex-shrink: 1;
+    }
+
+    .mobile-day-events .week-event-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
     }
 
     /* Calendar overview: 7열 도트 뷰 */
