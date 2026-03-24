@@ -11,7 +11,7 @@ import type { PolyEvent } from '../types.ts';
 let mobileDayIndex = 0;
 
 export function renderWeekView(searchQuery = ''): void {
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
     if (isMobile) {
         renderMobileDayView(searchQuery);
