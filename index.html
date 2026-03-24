@@ -7,7 +7,115 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <!-- ═══ Landing Page ═══ -->
+    <section class="landing" id="landingPage">
+        <div class="landing-inner">
+            <!-- Top bar -->
+            <div class="landing-topbar">
+                <div class="landing-brand">
+                    <span class="landing-brand-mark">&#9733;</span>
+                    <span class="landing-brand-name">POLYMARKET COMMUNITY</span>
+                </div>
+                <div class="landing-topbar-right">
+                    <button class="icon-btn" id="landingThemeToggle" title="Toggle Theme">
+                        <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                    <div class="hero-badge">
+                        <span class="hero-badge-dot"></span>
+                        <span class="hero-badge-label">LIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero -->
+            <div class="landing-hero">
+                <div class="landing-title-wrapper">
+                    <h1 class="landing-title">POLYMARKET</h1>
+                    <h1 class="landing-title landing-title--sub">COMMUNITY</h1>
+                </div>
+                <p class="landing-subtitle">PREDICT &middot; BET &middot; WIN</p>
+                <div class="landing-rule"></div>
+                <div class="landing-stats">
+                    <div class="landing-stat">
+                        <span class="landing-stat-value" id="landingStatMarkets">—</span>
+                        <span class="landing-stat-label">ACTIVE MARKETS</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span class="landing-stat-value" id="landingStatToday">—</span>
+                        <span class="landing-stat-label">ENDING TODAY</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span class="landing-stat-value" id="landingStatVolume">—</span>
+                        <span class="landing-stat-label">TOTAL VOLUME</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setlist -->
+            <div class="landing-setlist-header">&#9733; SETLIST &#9733;</div>
+            <div class="landing-grid">
+                <button class="landing-card landing-card--judas" data-target="calendar">
+                    <div class="landing-card-bg"></div>
+                    <span class="landing-card-track">01</span>
+                    <div class="landing-card-content">
+                        <h2 class="landing-card-title">EVENT CALENDAR</h2>
+                        <p class="landing-card-desc">이번 주 + 향후 3주 이벤트를 타임라인과 달력으로 탐색</p>
+                        <span class="landing-card-band">Judas Priest</span>
+                    </div>
+                    <span class="landing-card-arrow">&#9658;</span>
+                </button>
+
+                <button class="landing-card landing-card--maiden" data-target="surebet">
+                    <div class="landing-card-bg"></div>
+                    <span class="landing-card-track">02</span>
+                    <div class="landing-card-content">
+                        <h2 class="landing-card-title">99% MARKET</h2>
+                        <p class="landing-card-desc">확률 90%+ 단기 확정 수익 기회를 실시간 추적</p>
+                        <span class="landing-card-band">Iron Maiden</span>
+                    </div>
+                    <span class="landing-card-arrow">&#9658;</span>
+                </button>
+
+                <button class="landing-card landing-card--metallica" data-target="korea">
+                    <div class="landing-card-bg"></div>
+                    <span class="landing-card-track">03</span>
+                    <div class="landing-card-content">
+                        <h2 class="landing-card-title">KOREA PREDICTIONS</h2>
+                        <p class="landing-card-desc">한국 관련 예측 시장만 필터링해서 모아보기</p>
+                        <span class="landing-card-band">Metallica</span>
+                    </div>
+                    <span class="landing-card-arrow">&#9658;</span>
+                </button>
+
+                <button class="landing-card landing-card--megadeth" data-target="live">
+                    <div class="landing-card-bg"></div>
+                    <span class="landing-card-track">04</span>
+                    <div class="landing-card-content">
+                        <h2 class="landing-card-title">LIVE TRACKER</h2>
+                        <p class="landing-card-desc">날씨 x 예측 시장 — 실시간 데이터와 확률 비교</p>
+                        <span class="landing-card-band">Megadeth</span>
+                    </div>
+                    <span class="landing-card-arrow">&#9658;</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ App (hidden until feature selected) ═══ -->
+    <div class="container app-container" id="appContainer" style="display:none;">
         <!-- Unified Header (sticky) -->
         <header class="unified-header">
             <!-- Row 1: Hero -->
@@ -53,6 +161,29 @@
                         <span class="hero-badge-dot"></span>
                         <span class="hero-badge-label">Live</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- Row 1.5: Stats Strip -->
+            <div class="hero-stats" id="heroStats">
+                <div class="hero-stat">
+                    <span class="hero-stat-value" id="statActiveMarkets">—</span>
+                    <span class="hero-stat-label">활성 마켓</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value" id="statEndingToday">—</span>
+                    <span class="hero-stat-label">오늘 마감</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value" id="statTotalVolume">—</span>
+                    <span class="hero-stat-label">총 거래량</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value" id="statCategories">—</span>
+                    <span class="hero-stat-label">카테고리</span>
                 </div>
             </div>
 

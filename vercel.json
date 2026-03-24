@@ -18,6 +18,10 @@
       "destination": "https://apihub.kma.go.kr/api/:path*"
     },
     {
+      "source": "/calendar",
+      "destination": "/index.html"
+    },
+    {
       "source": "/99market",
       "destination": "/index.html"
     },

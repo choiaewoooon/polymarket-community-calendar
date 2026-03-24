@@ -11,6 +11,7 @@ import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
 import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents, liveWeatherEvents } from './state.ts';
 import { renderLiveTrackerView, initLiveTrackerListeners, loadLiveWeatherMarkets } from './render/liveTrackerView.ts';
+import { updateHeroStats, updateLandingStats } from './heroStats.ts';
 import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
@@ -25,15 +26,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     initQuickFilters();
     initTooltip();
     setupEventListeners();
+    initLandingCards();
+
     await loadData(() => {
-        // SWR 백그라운드 갱신 완료 시 캘린더 자동 리렌더
         console.log('🔄 백그라운드 갱신 반영, 캘린더 리렌더');
         updateActiveFiltersDisplay();
         const searchQuery = (document.getElementById('searchInput') as HTMLInputElement)?.value || '';
         renderCalendar(searchQuery);
+        updateHeroStats();
+        updateLandingStats();
     });
     updateActiveFiltersDisplay();
     renderCalendar();
+    updateHeroStats();
+    updateLandingStats();
 
     initV2Admin();
     initKoreaSortListeners();
@@ -43,17 +49,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     initHeaderShrink();
     initMobileAccordion();
 
-    // URL 기반 초기 탭 설정
+    // URL 기반 초기 라우팅
     const initialTab = getTabFromPath();
-    if (initialTab !== 'calendar') {
-        await switchTab(initialTab);
+    if (initialTab !== null) {
+        // URL이 /99market, /komarket, /live 등이면 바로 앱 진입
+        enterApp(initialTab, false);
     }
+    // / 이면 랜딩 페이지 표시 (기본)
 
     // 브라우저 뒤로/앞으로 버튼 처리
-    window.addEventListener('popstate', () => {
-        const tab = getTabFromPath();
-        if (tab !== currentTab) {
-            switchTab(tab, false);
+    window.addEventListener('popstate', (e) => {
+        const state = e.state as { tab?: PageTab; landing?: boolean } | null;
+        if (state?.landing || (!state && window.location.pathname === '/')) {
+            showLanding();
+        } else {
+            const tab = state?.tab || getTabFromPath() || 'calendar';
+            enterApp(tab, false);
         }
     });
 });
@@ -77,6 +88,16 @@ function setupEventListeners(): void {
             e.preventDefault();
             e.stopPropagation();
             toggleTheme();
+        });
+    }
+
+    // Hero title → 랜딩으로 돌아가기
+    const heroTitle = document.querySelector('.hero-title');
+    if (heroTitle) {
+        (heroTitle as HTMLElement).style.cursor = 'pointer';
+        heroTitle.addEventListener('click', () => {
+            history.pushState({ landing: true }, '', '/');
+            showLanding();
         });
     }
 
@@ -183,21 +204,83 @@ function setupEventListeners(): void {
 // ─── URL 라우팅 ───
 
 const ROUTE_MAP: Record<string, PageTab> = {
+    '/calendar': 'calendar',
     '/99market': 'surebet',
     '/komarket': 'korea',
     '/live': 'live',
 };
 
 const TAB_TO_PATH: Record<PageTab, string> = {
-    calendar: '/',
+    calendar: '/calendar',
     surebet: '/99market',
     korea: '/komarket',
     live: '/live',
 };
 
-function getTabFromPath(): PageTab {
+/** / 이면 null(랜딩), 그 외 매칭되는 탭 반환 */
+function getTabFromPath(): PageTab | null {
     const path = window.location.pathname;
-    return ROUTE_MAP[path] || 'calendar';
+    return ROUTE_MAP[path] || null;
+}
+
+// ─── 랜딩 ↔ 앱 전환 ───
+
+function initLandingCards(): void {
+    document.querySelectorAll('.landing-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const target = (card as HTMLElement).dataset.target as PageTab;
+            if (target) enterApp(target);
+        });
+    });
+
+    // 랜딩 테마 토글
+    const landingThemeToggle = document.getElementById('landingThemeToggle');
+    if (landingThemeToggle) {
+        landingThemeToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleTheme();
+        });
+    }
+}
+
+async function enterApp(tab: PageTab, pushState = true): Promise<void> {
+    const landing = document.getElementById('landingPage');
+    const app = document.getElementById('appContainer');
+    if (!landing || !app) return;
+
+    // 이미 앱이 보이면 탭만 전환
+    if (landing.style.display === 'none') {
+        await switchTab(tab, pushState);
+        return;
+    }
+
+    // 랜딩 exit 애니메이션
+    landing.classList.add('exiting');
+    await new Promise(r => setTimeout(r, 350));
+    landing.style.display = 'none';
+    landing.classList.remove('exiting');
+
+    // 앱 표시 + enter 애니메이션
+    app.style.display = '';
+    app.classList.add('entering');
+    setTimeout(() => app.classList.remove('entering'), 500);
+
+    // 해당 탭으로 전환
+    await switchTab(tab, pushState);
+}
+
+function showLanding(): void {
+    const landing = document.getElementById('landingPage');
+    const app = document.getElementById('appContainer');
+    if (!landing || !app) return;
+
+    app.style.display = 'none';
+    landing.style.display = '';
+    landing.classList.remove('exiting');
+
+    stopSureBetRefresh();
+    stopCountdownTimer();
 }
 
 // ─── 페이지 탭 전환 ───
@@ -227,7 +310,7 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
         btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
     });
 
-    // 캘린더 관련 섹션들 (info-banner, toolbar 제거됨 — Phase 1 리뉴얼)
+    // 캘린더 관련 섹션들
     const calendarSections = [
         document.querySelector('.quick-filters'),
         document.querySelector('.week-section'),
@@ -237,6 +320,23 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
     const koreaSection = document.getElementById('koreaViewSection');
     const sureBetSection = document.getElementById('sureBetSection');
     const liveSection = document.getElementById('liveViewSection');
+
+    // 현재 보이는 섹션에 exit 애니메이션 적용
+    const visibleSections = [
+        ...calendarSections,
+        koreaSection, sureBetSection, liveSection
+    ].filter(el => el && (el as HTMLElement).style.display !== 'none');
+
+    if (visibleSections.length > 0) {
+        visibleSections.forEach(el => {
+            if (el) (el as HTMLElement).classList.add('tab-exiting');
+        });
+        // exit 애니메이션 대기
+        await new Promise(r => setTimeout(r, 180));
+        visibleSections.forEach(el => {
+            if (el) (el as HTMLElement).classList.remove('tab-exiting');
+        });
+    }
 
     // 모든 섹션 숨김
     calendarSections.forEach(el => {
