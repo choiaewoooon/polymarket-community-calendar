@@ -5936,6 +5936,7 @@ body.admin-mode .container {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        min-height: auto;
     }
 
     .week-day {
@@ -5945,6 +5946,7 @@ body.admin-mode .container {
     .week-day-header {
         padding: 10px 14px;
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
     }
 
     .week-day-events {
@@ -5956,12 +5958,37 @@ body.admin-mode .container {
         max-height: 0;
         overflow: hidden;
         padding: 0 8px;
-        transition: max-height var(--transition-smooth), padding var(--transition-smooth);
+        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .week-day:not(.today).expanded .week-day-events {
-        max-height: 2000px;
+        max-height: 5000px;
         padding: 0 8px 8px;
+    }
+
+    /* 오늘 이벤트 접기 ("더보기" 버튼으로 확장) */
+    .week-day.today .week-day-events:not(.expanded-all) .week-event:nth-child(n+6) {
+        display: none;
+    }
+
+    .week-show-more {
+        width: 100%;
+        padding: 10px;
+        background: rgba(220, 38, 38, 0.06);
+        border: 1px dashed rgba(212, 160, 23, 0.25);
+        border-radius: var(--radius-sm);
+        color: var(--accent-green);
+        font-family: var(--font-sans);
+        font-size: 12px;
+        cursor: pointer;
+        margin-top: 4px;
+        text-align: center;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .week-show-more:active {
+        background: rgba(220, 38, 38, 0.12);
     }
 
     /* Week day header tap indicator */
@@ -5982,13 +6009,55 @@ body.admin-mode .container {
         transform: rotate(-135deg);
     }
 
-    /* Calendar overview: 더 적은 컬럼 */
+    /* Calendar overview: 7열 도트 뷰 */
     .calendar-overview-weekdays {
-        display: none;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0;
+    }
+
+    .calendar-overview-weekdays .weekday {
+        font-size: 9px;
+        padding: 4px 0;
+        text-align: center;
     }
 
     .calendar-overview-days {
-        grid-template-columns: repeat(4, 1fr) !important;
+        grid-template-columns: repeat(7, 1fr) !important;
+        gap: 2px !important;
+    }
+
+    .calendar-overview-day {
+        min-height: 52px;
+        padding: 3px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 이벤트를 도트(컬러 바)로 압축 */
+    .calendar-overview-event {
+        height: 5px;
+        border-radius: 2px;
+        padding: 0;
+        margin: 1px 0;
+        overflow: hidden;
+    }
+
+    .overview-event-image,
+    .overview-event-title,
+    .overview-event-prob,
+    .overview-admin-controls {
+        display: none !important;
+    }
+
+    .calendar-overview-day-number {
+        font-size: 11px;
+    }
+
+    .calendar-overview-more-link {
+        font-size: 8px;
+        padding: 0;
+        margin-top: 1px;
     }
 
     /* Korea/SB cards: 풀너비 */
@@ -6260,6 +6329,95 @@ body.admin-mode .container {
 .live-content {
     position: relative;
     z-index: 1;
+}
+
+/* ═══════════════════════════════════════════
+   TOUCH INTERACTION — hover/active 분리
+   ═══════════════════════════════════════════ */
+
+/* 터치 기기: :active로 즉각 피드백 */
+@media (hover: none) {
+    .week-event:active {
+        background: var(--bg-elevated);
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    .week-day-header:active {
+        background: rgba(212, 160, 23, 0.08);
+    }
+
+    .calendar-overview-day:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+    }
+
+    .page-tab:active {
+        background: rgba(220, 38, 38, 0.06);
+    }
+
+    .landing-card:active {
+        transform: scale(0.97) !important;
+        transition: transform 0.1s ease !important;
+    }
+
+    /* hover sticky 방지 */
+    .week-event:hover,
+    .landing-card:hover {
+        transform: none;
+        box-shadow: var(--shadow-card);
+    }
+}
+
+/* 스와이프 전환 애니메이션 */
+.calendar-overview-grid {
+    touch-action: pan-y;
+}
+
+.calendar-overview-days.swiping-left {
+    animation: swipe-left 0.3s ease-out;
+}
+
+.calendar-overview-days.swiping-right {
+    animation: swipe-right 0.3s ease-out;
+}
+
+@keyframes swipe-left {
+    0% { transform: translateX(0); opacity: 1; }
+    40% { transform: translateX(-15px); opacity: 0.6; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes swipe-right {
+    0% { transform: translateX(0); opacity: 1; }
+    40% { transform: translateX(15px); opacity: 0.6; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE PERFORMANCE
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+    /* 콜라주 float 애니메이션 비활성화 (배터리 절약) */
+    .collage-photo {
+        animation: none !important;
+    }
+
+    /* 섹션 배경 이미지 숨김 (메모리 절약) */
+    .week-section::before,
+    .calendar-overview-section::before {
+        display: none;
+    }
+}
+
+/* 사용자 reduced-motion 존중 */
+@media (prefers-reduced-motion: reduce) {
+    .collage-photo { animation: none !important; }
+    .landing-title { animation: landing-slide-up 0.01s ease both !important; }
+    .landing-title--sub { animation: landing-slide-up 0.01s ease both !important; }
+    .landing-card-bg { transition: none !important; }
+    * { animation-duration: 0.01s !important; }
 }
 
 /* Skeleton loading placeholder */

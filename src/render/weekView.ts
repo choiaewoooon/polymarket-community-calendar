@@ -81,6 +81,20 @@ export function renderWeekView(searchQuery = ''): void {
             dayEvents.forEach(event => {
                 renderWeekEventCard(eventsContainer, event);
             });
+
+            // 모바일: 오늘 이벤트 5개 초과 시 "더보기" 버튼
+            if (isToday && window.innerWidth <= 480 && dayEvents.length > 5) {
+                const hiddenCount = dayEvents.length - 5;
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'week-show-more';
+                moreBtn.textContent = `+ ${hiddenCount}${translations[currentLang].events} ${translations[currentLang].more}`;
+                moreBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    eventsContainer.classList.add('expanded-all');
+                    moreBtn.remove();
+                });
+                eventsContainer.appendChild(moreBtn);
+            }
         }
     });
 }

@@ -12,6 +12,7 @@ import { initV2Admin } from './admin.ts';
 import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents, liveWeatherEvents } from './state.ts';
 import { renderLiveTrackerView, initLiveTrackerListeners, loadLiveWeatherMarkets } from './render/liveTrackerView.ts';
 import { updateHeroStats, updateLandingStats } from './heroStats.ts';
+import { onSwipe } from './touch.ts';
 import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
@@ -48,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initPageTabs();
     initHeaderShrink();
     initMobileAccordion();
+    initCalendarSwipe();
 
     // URL 기반 초기 라우팅
     const initialTab = getTabFromPath();
@@ -424,6 +426,32 @@ function initMobileAccordion(): void {
         if (!dayEl || dayEl.classList.contains('today')) return;
 
         dayEl.classList.toggle('expanded');
+    });
+}
+
+// ─── 모바일 캘린더 스와이프 ───
+
+function initCalendarSwipe(): void {
+    const calGrid = document.querySelector('.calendar-overview-grid') as HTMLElement | null;
+    if (!calGrid) return;
+
+    onSwipe(calGrid, {
+        onLeft: () => {
+            const daysEl = document.getElementById('calendarOverviewDays');
+            if (daysEl) {
+                daysEl.classList.add('swiping-left');
+                setTimeout(() => daysEl.classList.remove('swiping-left'), 300);
+            }
+            document.getElementById('nextWeek')?.click();
+        },
+        onRight: () => {
+            const daysEl = document.getElementById('calendarOverviewDays');
+            if (daysEl) {
+                daysEl.classList.add('swiping-right');
+                setTimeout(() => daysEl.classList.remove('swiping-right'), 300);
+            }
+            document.getElementById('prevWeek')?.click();
+        },
     });
 }
 
