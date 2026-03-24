@@ -9,6 +9,8 @@ import type { PolyEvent } from '../types.ts';
 
 // ─── 모바일 단일 날짜 인덱스 ───
 let mobileDayIndex = 0;
+let prevMobileDayIndex = 0;
+let slideDirection: 'left' | 'right' | null = null;
 
 export function renderWeekView(searchQuery = ''): void {
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -144,6 +146,8 @@ function renderMobileDayView(searchQuery: string): void {
         const evtCount = (eventsByDate[dk] || []).length;
         if (evtCount > 0) dot.classList.add('has-events');
         dot.addEventListener('click', () => {
+            prevMobileDayIndex = mobileDayIndex;
+            slideDirection = i > mobileDayIndex ? 'left' : i < mobileDayIndex ? 'right' : null;
             mobileDayIndex = i;
             renderWeekView(searchQuery);
         });
@@ -158,7 +162,12 @@ function renderMobileDayView(searchQuery: string): void {
     eventsContainer.className = 'mobile-day-events';
 
     if (dayEvents.length === 0) {
-        eventsContainer.innerHTML = `<div class="week-no-events">${translations[currentLang].noEvents}</div>`;
+        eventsContainer.innerHTML = `
+            <div class="mobile-empty-state">
+                <div class="mobile-empty-icon">&#9734;</div>
+                <div class="mobile-empty-text">${translations[currentLang].noEvents}</div>
+                <div class="mobile-empty-hint">이 날짜에 만료 예정인 이벤트가 없습니다</div>
+            </div>`;
     } else {
         dayEvents.forEach(event => {
             renderWeekEventCard(eventsContainer, event);
@@ -167,17 +176,27 @@ function renderMobileDayView(searchQuery: string): void {
 
     timeline.appendChild(eventsContainer);
 
+    // 슬라이드 애니메이션 적용
+    if (slideDirection) {
+        eventsContainer.classList.add(`slide-in-${slideDirection}`);
+        slideDirection = null;
+    }
+
     // 화살표 이벤트
     navEl.querySelector('.mobile-day-prev')?.addEventListener('click', () => {
         if (mobileDayIndex > 0) {
+            prevMobileDayIndex = mobileDayIndex;
             mobileDayIndex--;
+            slideDirection = 'right';
             renderWeekView(searchQuery);
         }
     });
 
     navEl.querySelector('.mobile-day-next')?.addEventListener('click', () => {
         if (mobileDayIndex < weekDates.length - 1) {
+            prevMobileDayIndex = mobileDayIndex;
             mobileDayIndex++;
+            slideDirection = 'left';
             renderWeekView(searchQuery);
         }
     });
