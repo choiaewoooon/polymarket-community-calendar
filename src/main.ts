@@ -432,26 +432,43 @@ function initMobileAccordion(): void {
 // ─── 모바일 캘린더 스와이프 ───
 
 function initCalendarSwipe(): void {
+    // Calendar overview 스와이프
     const calGrid = document.querySelector('.calendar-overview-grid') as HTMLElement | null;
-    if (!calGrid) return;
+    if (calGrid) {
+        onSwipe(calGrid, {
+            onLeft: () => {
+                const daysEl = document.getElementById('calendarOverviewDays');
+                if (daysEl) {
+                    daysEl.classList.add('swiping-left');
+                    setTimeout(() => daysEl.classList.remove('swiping-left'), 300);
+                }
+                document.getElementById('nextWeek')?.click();
+            },
+            onRight: () => {
+                const daysEl = document.getElementById('calendarOverviewDays');
+                if (daysEl) {
+                    daysEl.classList.add('swiping-right');
+                    setTimeout(() => daysEl.classList.remove('swiping-right'), 300);
+                }
+                document.getElementById('prevWeek')?.click();
+            },
+        });
+    }
 
-    onSwipe(calGrid, {
-        onLeft: () => {
-            const daysEl = document.getElementById('calendarOverviewDays');
-            if (daysEl) {
-                daysEl.classList.add('swiping-left');
-                setTimeout(() => daysEl.classList.remove('swiping-left'), 300);
-            }
-            document.getElementById('nextWeek')?.click();
-        },
-        onRight: () => {
-            const daysEl = document.getElementById('calendarOverviewDays');
-            if (daysEl) {
-                daysEl.classList.add('swiping-right');
-                setTimeout(() => daysEl.classList.remove('swiping-right'), 300);
-            }
-            document.getElementById('prevWeek')?.click();
-        },
-    });
+    // Week timeline 스와이프 (모바일 하루 뷰에서 날짜 이동)
+    const weekTimeline = document.getElementById('weekTimeline');
+    if (weekTimeline) {
+        onSwipe(weekTimeline, {
+            onLeft: () => {
+                // 다음 날 → next 버튼 클릭 시뮬레이션
+                const nextBtn = weekTimeline.querySelector('.mobile-day-next') as HTMLButtonElement | null;
+                nextBtn?.click();
+            },
+            onRight: () => {
+                const prevBtn = weekTimeline.querySelector('.mobile-day-prev') as HTMLButtonElement | null;
+                prevBtn?.click();
+            },
+        });
+    }
 }
 

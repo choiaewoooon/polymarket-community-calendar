@@ -7,7 +7,22 @@ import { showEventTooltip, hideEventTooltip, positionTooltip } from './tooltip.t
 import { openEventLink } from './modal.ts';
 import type { PolyEvent } from '../types.ts';
 
+// ─── 모바일 단일 날짜 인덱스 ───
+let mobileDayIndex = 0;
+
 export function renderWeekView(searchQuery = ''): void {
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        renderMobileDayView(searchQuery);
+    } else {
+        renderDesktopWeekView(searchQuery);
+    }
+}
+
+// ─── 데스크톱: 기존 5열 뷰 ───
+
+function renderDesktopWeekView(searchQuery: string): void {
     const todayKST = getKSTToday();
     const filtered = getFilteredEvents(searchQuery);
     const nowKST = new Date();
@@ -17,30 +32,7 @@ export function renderWeekView(searchQuery = ''): void {
         weekDates.push(addDays(todayKST, i));
     }
 
-    const eventsByDate: Record<string, PolyEvent[]> = {};
-    filtered.forEach(event => {
-        if (event.end_date) {
-            const dateKey = toKSTDateString(event.end_date);
-            if (weekDates.includes(dateKey)) {
-                if (dateKey === todayKST) {
-                    const eventEndTime = new Date(event.end_date);
-                    if (eventEndTime > nowKST) {
-                        if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
-                        eventsByDate[dateKey].push(event);
-                    }
-                } else {
-                    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
-                    eventsByDate[dateKey].push(event);
-                }
-            }
-        }
-    });
-
-    Object.keys(eventsByDate).forEach(dateKey => {
-        eventsByDate[dateKey].sort((a, b) => {
-            return new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
-        });
-    });
+    const eventsByDate = buildEventsByDate(filtered, weekDates, todayKST, nowKST);
 
     const weekStart = new Date(todayKST + 'T00:00:00');
     const weekEnd = new Date(addDays(todayKST, 4) + 'T00:00:00');
@@ -81,23 +73,153 @@ export function renderWeekView(searchQuery = ''): void {
             dayEvents.forEach(event => {
                 renderWeekEventCard(eventsContainer, event);
             });
-
-            // 모바일: 오늘 이벤트 5개 초과 시 "더보기" 버튼
-            if (isToday && window.innerWidth <= 768 && dayEvents.length > 5) {
-                const hiddenCount = dayEvents.length - 5;
-                const moreBtn = document.createElement('button');
-                moreBtn.className = 'week-show-more';
-                moreBtn.textContent = `+ ${hiddenCount}${translations[currentLang].events} ${translations[currentLang].more}`;
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    eventsContainer.classList.add('expanded-all');
-                    moreBtn.remove();
-                });
-                eventsContainer.appendChild(moreBtn);
-            }
         }
     });
 }
+
+// ─── 모바일: 하루 단일 뷰 + 좌우 화살표 ───
+
+function renderMobileDayView(searchQuery: string): void {
+    const todayKST = getKSTToday();
+    const filtered = getFilteredEvents(searchQuery);
+    const nowKST = new Date();
+
+    const weekDates: string[] = [];
+    for (let i = 0; i < 5; i++) {
+        weekDates.push(addDays(todayKST, i));
+    }
+
+    const eventsByDate = buildEventsByDate(filtered, weekDates, todayKST, nowKST);
+
+    // 범위 제한
+    if (mobileDayIndex < 0) mobileDayIndex = 0;
+    if (mobileDayIndex >= weekDates.length) mobileDayIndex = weekDates.length - 1;
+
+    const currentDateKey = weekDates[mobileDayIndex];
+    const dayEvents = eventsByDate[currentDateKey] || [];
+    const date = new Date(currentDateKey + 'T00:00:00');
+    const isToday = currentDateKey === todayKST;
+
+    const dayName = date.toLocaleDateString(getLocale(), { weekday: 'long', timeZone: 'Asia/Seoul' });
+    const dayNumber = date.getDate();
+    const monthName = date.toLocaleDateString(getLocale(), { month: 'long', timeZone: 'Asia/Seoul' });
+    const dayDateText = currentLang === 'ko' ? `${monthName} ${dayNumber}일` : `${monthName} ${dayNumber}`;
+
+    // 주 범위 텍스트
+    const weekStart = new Date(todayKST + 'T00:00:00');
+    const weekEnd = new Date(addDays(todayKST, 4) + 'T00:00:00');
+    const weekRangeText = `${weekStart.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })} - ${weekEnd.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })}`;
+    document.getElementById('weekRange')!.textContent = weekRangeText;
+
+    const timeline = document.getElementById('weekTimeline')!;
+    timeline.innerHTML = '';
+
+    // 날짜 네비게이션 헤더
+    const navEl = document.createElement('div');
+    navEl.className = 'mobile-day-nav';
+    navEl.innerHTML = `
+        <button class="mobile-day-arrow mobile-day-prev" ${mobileDayIndex === 0 ? 'disabled' : ''}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+        <div class="mobile-day-info">
+            <div class="mobile-day-name">${dayName}</div>
+            <div class="mobile-day-date">${dayDateText}${isToday ? ` <span class="mobile-day-today-badge">TODAY</span>` : ''}</div>
+            <div class="mobile-day-count">${dayEvents.length}${translations[currentLang].events}</div>
+        </div>
+        <button class="mobile-day-arrow mobile-day-next" ${mobileDayIndex >= weekDates.length - 1 ? 'disabled' : ''}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </button>
+    `;
+
+    // 날짜 도트 인디케이터
+    const dotsEl = document.createElement('div');
+    dotsEl.className = 'mobile-day-dots';
+    weekDates.forEach((dk, i) => {
+        const dot = document.createElement('button');
+        dot.className = `mobile-day-dot${i === mobileDayIndex ? ' active' : ''}${dk === todayKST ? ' is-today' : ''}`;
+        const evtCount = (eventsByDate[dk] || []).length;
+        if (evtCount > 0) dot.classList.add('has-events');
+        dot.addEventListener('click', () => {
+            mobileDayIndex = i;
+            renderWeekView(searchQuery);
+        });
+        dotsEl.appendChild(dot);
+    });
+
+    timeline.appendChild(navEl);
+    timeline.appendChild(dotsEl);
+
+    // 이벤트 목록
+    const eventsContainer = document.createElement('div');
+    eventsContainer.className = 'mobile-day-events';
+
+    if (dayEvents.length === 0) {
+        eventsContainer.innerHTML = `<div class="week-no-events">${translations[currentLang].noEvents}</div>`;
+    } else {
+        dayEvents.forEach(event => {
+            renderWeekEventCard(eventsContainer, event);
+        });
+    }
+
+    timeline.appendChild(eventsContainer);
+
+    // 화살표 이벤트
+    navEl.querySelector('.mobile-day-prev')?.addEventListener('click', () => {
+        if (mobileDayIndex > 0) {
+            mobileDayIndex--;
+            renderWeekView(searchQuery);
+        }
+    });
+
+    navEl.querySelector('.mobile-day-next')?.addEventListener('click', () => {
+        if (mobileDayIndex < weekDates.length - 1) {
+            mobileDayIndex++;
+            renderWeekView(searchQuery);
+        }
+    });
+}
+
+// ─── 공통: 날짜별 이벤트 그룹핑 ───
+
+function buildEventsByDate(
+    filtered: PolyEvent[],
+    weekDates: string[],
+    todayKST: string,
+    nowKST: Date
+): Record<string, PolyEvent[]> {
+    const eventsByDate: Record<string, PolyEvent[]> = {};
+    filtered.forEach(event => {
+        if (event.end_date) {
+            const dateKey = toKSTDateString(event.end_date);
+            if (weekDates.includes(dateKey)) {
+                if (dateKey === todayKST) {
+                    const eventEndTime = new Date(event.end_date);
+                    if (eventEndTime > nowKST) {
+                        if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+                        eventsByDate[dateKey].push(event);
+                    }
+                } else {
+                    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+                    eventsByDate[dateKey].push(event);
+                }
+            }
+        }
+    });
+
+    Object.keys(eventsByDate).forEach(dateKey => {
+        eventsByDate[dateKey].sort((a, b) => {
+            return new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
+        });
+    });
+
+    return eventsByDate;
+}
+
+// ─── 이벤트 카드 렌더링 ───
 
 function renderWeekEventCard(container: HTMLElement, event: PolyEvent): void {
     const time = getKSTTime(event.end_date);
@@ -166,7 +288,6 @@ function renderWeekEventCard(container: HTMLElement, event: PolyEvent): void {
         });
     }
 
-    // Admin 컨트롤 — 이벤트 위임으로 v2OpenEditModal, v2ToggleHidden 호출
     eventEl.querySelectorAll('[data-admin-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();

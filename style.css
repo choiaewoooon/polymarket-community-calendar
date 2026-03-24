@@ -5857,84 +5857,138 @@ body.admin-mode .container {
 }
 
 /* Small tablet / large mobile */
-/* ═══ 모바일 (768px 이하): Week View 세로 스택 + Calendar 도트 뷰 ═══ */
+/* ═══ 모바일 (768px 이하): 하루 단일 뷰 + Calendar 도트 뷰 ═══ */
 @media (max-width: 768px) {
-    /* Week View: 세로 스택 */
+    /* Week View: 단일 열 (JS가 하루만 렌더) */
     .week-timeline {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
         min-height: auto;
     }
 
-    .week-day {
-        border-radius: var(--radius-md);
+    /* ─── 모바일 날짜 네비게이션 ─── */
+    .mobile-day-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 8px;
+        gap: 8px;
     }
 
-    .week-day-header {
-        padding: 10px 14px;
+    .mobile-day-arrow {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
+        flex-shrink: 0;
         -webkit-tap-highlight-color: transparent;
+        transition: all 0.15s ease;
     }
 
-    .week-day-events {
-        padding: 0 8px 8px;
+    .mobile-day-arrow:active {
+        background: var(--bg-elevated);
+        transform: scale(0.92);
     }
 
-    /* Week day accordion: 비오늘은 접힘 */
-    .week-day:not(.today) .week-day-events {
-        max-height: 0;
-        overflow: hidden;
-        padding: 0 8px;
-        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                    padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    .mobile-day-arrow:disabled {
+        opacity: 0.25;
+        pointer-events: none;
     }
 
-    .week-day:not(.today).expanded .week-day-events {
-        max-height: 5000px;
-        padding: 0 8px 8px;
+    .mobile-day-info {
+        text-align: center;
+        flex: 1;
+        min-width: 0;
     }
 
-    /* 오늘 이벤트 접기 ("더보기" 버튼으로 확장) */
-    .week-day.today .week-day-events:not(.expanded-all) .week-event:nth-child(n+6) {
-        display: none;
+    .mobile-day-name {
+        font-family: var(--font-display);
+        font-size: 14px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
 
-    .week-show-more {
-        width: 100%;
-        padding: 10px;
-        background: rgba(220, 38, 38, 0.06);
-        border: 1px dashed rgba(212, 160, 23, 0.25);
-        border-radius: var(--radius-sm);
-        color: var(--accent-green);
+    .mobile-day-date {
+        font-family: var(--font-display);
+        font-size: 22px;
+        color: var(--text-primary);
+        letter-spacing: 0.02em;
+        line-height: 1.2;
+    }
+
+    .mobile-day-today-badge {
+        display: inline-block;
+        background: var(--accent-red);
+        color: #fff;
+        font-family: var(--font-sans);
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 3px;
+        letter-spacing: 0.1em;
+        vertical-align: middle;
+        margin-left: 4px;
+    }
+
+    .mobile-day-count {
         font-family: var(--font-sans);
         font-size: 12px;
-        cursor: pointer;
-        margin-top: 4px;
-        text-align: center;
-        -webkit-tap-highlight-color: transparent;
+        color: var(--text-muted);
+        margin-top: 2px;
     }
 
-    .week-show-more:active {
-        background: rgba(220, 38, 38, 0.12);
+    /* ─── 날짜 도트 인디케이터 ─── */
+    .mobile-day-dots {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 16px 12px;
     }
 
-    /* Week day header tap indicator */
-    .week-day-header::after {
-        content: '';
-        display: inline-block;
+    .mobile-day-dot {
         width: 8px;
         height: 8px;
-        border-right: 2px solid var(--text-muted);
-        border-bottom: 2px solid var(--text-muted);
-        transform: rotate(45deg);
-        margin-left: auto;
-        transition: transform var(--transition-fast);
+        border-radius: 50%;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        transition: all 0.2s ease;
     }
 
-    .week-day.today .week-day-header::after,
-    .week-day.expanded .week-day-header::after {
-        transform: rotate(-135deg);
+    .mobile-day-dot.has-events {
+        background: var(--text-muted);
+    }
+
+    .mobile-day-dot.active {
+        background: var(--accent-red);
+        border-color: var(--accent-red);
+        transform: scale(1.3);
+        box-shadow: 0 0 8px rgba(220, 38, 38, 0.3);
+    }
+
+    .mobile-day-dot.is-today {
+        border-color: var(--accent-green);
+    }
+
+    .mobile-day-dot.is-today.active {
+        background: var(--accent-green);
+        border-color: var(--accent-green);
+        box-shadow: 0 0 8px rgba(212, 160, 23, 0.3);
+    }
+
+    /* ─── 이벤트 목록 ─── */
+    .mobile-day-events {
+        padding: 0 8px 8px;
+    }
+
+    .mobile-day-events .week-event {
+        margin-bottom: 6px;
     }
 
     /* Calendar overview: 7열 도트 뷰 */
@@ -5950,7 +6004,6 @@ body.admin-mode .container {
         -webkit-tap-highlight-color: transparent;
     }
 
-    /* 이벤트를 도트(컬러 바)로 압축 */
     .calendar-overview-event {
         height: 5px;
         border-radius: 2px;
