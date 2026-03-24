@@ -417,7 +417,7 @@ function initHeaderShrink(): void {
 
 function initMobileAccordion(): void {
     document.getElementById('weekTimeline')?.addEventListener('click', (e) => {
-        if (window.innerWidth > 480) return;
+        if (window.innerWidth > 768) return;
 
         const header = (e.target as HTMLElement).closest('.week-day-header');
         if (!header) return;

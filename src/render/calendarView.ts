@@ -71,7 +71,7 @@ export function renderCalendarOverview(searchQuery = ''): void {
         daysContainer.appendChild(dayEl);
 
         // 모바일: 날짜 셀 전체 탭 → 해당 날짜 이벤트 모달
-        if (window.innerWidth <= 480 && dayEvents.length > 0) {
+        if (window.innerWidth <= 768 && dayEvents.length > 0) {
             dayEl.addEventListener('click', () => {
                 showDayEvents(dateKey);
             });

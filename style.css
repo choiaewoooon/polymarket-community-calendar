@@ -301,15 +301,7 @@ body::after {
 .collage-9 { animation: collage-float-3 14s ease-in-out infinite 3.5s; }
 .collage-10 { animation: collage-float-2 11s ease-in-out infinite 0.8s; }
 
-/* 모바일: 사진 더 작게, 양 줄임 */
-@media (max-width: 600px) {
-    .collage-photo {
-        transform: scale(0.6);
-    }
-    .collage-7, .collage-8, .collage-9 {
-        display: none;
-    }
-}
+/* 콜라주 모바일 처리는 768px 미디어 쿼리에서 통합 관리 */
 
 /* 콘텐츠가 콜라주 위에 오도록 */
 .landing, .app-container {
@@ -5865,72 +5857,8 @@ body.admin-mode .container {
 }
 
 /* Small tablet / large mobile */
-@media (max-width: 480px) {
-    .unified-header {
-        backdrop-filter: blur(12px);
-    }
-
-    .page-hero {
-        padding: 8px 12px;
-    }
-
-    .hero-title {
-        font-size: 14px;
-    }
-
-    .hero-stats {
-        padding: 0 12px;
-        gap: 0;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-
-    .hero-stats::-webkit-scrollbar {
-        display: none;
-    }
-
-    .hero-stat {
-        padding: 6px 12px;
-    }
-
-    .hero-stat-value {
-        font-size: 15px;
-    }
-
-    .hero-stat-label {
-        font-size: 9px;
-    }
-
-    .page-tabs {
-        padding: 0 12px;
-    }
-
-    .page-tab {
-        padding: 8px 10px;
-        font-size: 11px;
-        gap: 4px;
-    }
-
-    .page-tab svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .tabs-right {
-        gap: 6px;
-    }
-
-    .search-container {
-        width: 100%;
-        max-width: none;
-    }
-
-    .search-input {
-        font-size: 13px;
-        padding: 8px 12px 8px 32px;
-    }
-
+/* ═══ 모바일 (768px 이하): Week View 세로 스택 + Calendar 도트 뷰 ═══ */
+@media (max-width: 768px) {
     /* Week View: 세로 스택 */
     .week-timeline {
         display: flex;
@@ -6010,18 +5938,6 @@ body.admin-mode .container {
     }
 
     /* Calendar overview: 7열 도트 뷰 */
-    .calendar-overview-weekdays {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 0;
-    }
-
-    .calendar-overview-weekdays .weekday {
-        font-size: 9px;
-        padding: 4px 0;
-        text-align: center;
-    }
-
     .calendar-overview-days {
         grid-template-columns: repeat(7, 1fr) !important;
         gap: 2px !important;
@@ -6058,6 +5974,79 @@ body.admin-mode .container {
         font-size: 8px;
         padding: 0;
         margin-top: 1px;
+    }
+}
+
+/* ═══ 소형 모바일 (480px 이하): 추가 압축 ═══ */
+@media (max-width: 480px) {
+    .unified-header {
+        backdrop-filter: blur(12px);
+    }
+
+    .page-hero {
+        padding: 8px 12px;
+    }
+
+    .hero-title {
+        font-size: 14px;
+    }
+
+    .hero-stats {
+        padding: 0 12px;
+        gap: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .hero-stats::-webkit-scrollbar {
+        display: none;
+    }
+
+    .hero-stat {
+        padding: 6px 12px;
+    }
+
+    .hero-stat-value {
+        font-size: 15px;
+    }
+
+    .hero-stat-label {
+        font-size: 9px;
+    }
+
+    .page-tabs {
+        padding: 0 12px;
+    }
+
+    .page-tab {
+        padding: 8px 10px;
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    .page-tab svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .tabs-right {
+        gap: 6px;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .search-input {
+        font-size: 13px;
+        padding: 8px 12px 8px 32px;
+    }
+
+    .calendar-overview-weekdays .weekday {
+        font-size: 9px;
+        padding: 4px 0;
     }
 
     /* Korea/SB cards: 풀너비 */
@@ -6398,10 +6387,18 @@ body.admin-mode .container {
    MOBILE PERFORMANCE
    ═══════════════════════════════════════════ */
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     /* 콜라주 float 애니메이션 비활성화 (배터리 절약) */
     .collage-photo {
         animation: none !important;
+    }
+
+    /* 콜라주 사진 축소 + 일부 숨김 */
+    .collage-photo {
+        transform: scale(0.5) !important;
+    }
+    .collage-7, .collage-8, .collage-9 {
+        display: none;
     }
 
     /* 섹션 배경 이미지 숨김 (메모리 절약) */
