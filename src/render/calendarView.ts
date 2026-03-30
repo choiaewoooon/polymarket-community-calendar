@@ -48,6 +48,7 @@ export function renderCalendarOverview(searchQuery = ''): void {
 
         const dayNumber = date.getDate();
         const currentMonth = date.getMonth();
+        const dayOfWeek = date.toLocaleDateString(getLocale(), { weekday: 'short', timeZone: 'Asia/Seoul' });
 
         const isNewMonth = previousMonth !== null && previousMonth !== currentMonth;
         previousMonth = currentMonth;
@@ -63,7 +64,10 @@ export function renderCalendarOverview(searchQuery = ''): void {
 
         dayEl.innerHTML = `
             ${monthLabel}
-            <div class="calendar-overview-day-number">${dayNumber}</div>
+            <div class="calendar-overview-day-header">
+                <span class="calendar-overview-day-number">${dayNumber}</span>
+                <span class="calendar-overview-day-weekday">${dayOfWeek}</span>
+            </div>
             ${topEvents.length > 0 ? '<div class="calendar-overview-events"></div>' : ''}
             ${dayEvents.length > 3 ? `<div class="calendar-overview-more-link" data-date-key="${escapeHtml(dateKey)}">+${dayEvents.length - 3} ${translations[currentLang].more}</div>` : ''}
         `;

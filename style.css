@@ -1118,24 +1118,6 @@ body::after {
     padding: 0;
 }
 
-.calendar-overview-weekdays {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.weekday {
-    padding: 8px;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    background: var(--bg-tertiary);
-}
-
 .calendar-overview-days {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -1189,12 +1171,27 @@ body::after {
     letter-spacing: 0.08em;
 }
 
+.calendar-overview-day-header {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
 .calendar-overview-day-number {
     font-family: var(--font-display);
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
+}
+
+.calendar-overview-day-weekday {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .calendar-overview-day.other-month .calendar-overview-day-number {
@@ -5267,11 +5264,6 @@ body.admin-mode .container {
     .search-input {
         font-size: 13px;
         padding: 8px 12px 8px 32px;
-    }
-
-    .calendar-overview-weekdays .weekday {
-        font-size: 9px;
-        padding: 4px 0;
     }
 
     /* Korea/SB cards: 풀너비 */
