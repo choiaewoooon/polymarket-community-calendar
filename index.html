@@ -1,480 +1,1207 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="dark">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polymarket Community - Event Calendar</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Polymarket Community Calendar — 예측 시장 이벤트를 한눈에</title>
+    <meta name="description" content="Polymarket 예측 시장의 모든 이벤트를 캘린더와 타임라인으로 시각화합니다. 확률, 거래량, 마감일을 한 곳에서 추적하세요.">
+    <meta property="og:title" content="Polymarket Community Calendar">
+    <meta property="og:description" content="예측 시장 이벤트를 캘린더로 시각화">
+    <meta property="og:type" content="website">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════
+           RESET & BASE
+           ═══════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-void: #050507;
+            --bg-deep: #09090b;
+            --bg-surface: #0f0f14;
+            --bg-elevated: #16161e;
+            --bg-card: #1a1a24;
+
+            --text-primary: #ededf0;
+            --text-secondary: #9393a0;
+            --text-muted: #5c5c6e;
+            --text-ghost: #3a3a4a;
+
+            --accent-indigo: #6366f1;
+            --accent-violet: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #22c55e;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+
+            --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 40%, #a78bfa 100%);
+            --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+
+            --font-display: 'Instrument Serif', Georgia, serif;
+            --font-sans: 'Outfit', system-ui, sans-serif;
+            --font-mono: 'DM Mono', 'Courier New', monospace;
+
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-void);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        /* ═══════════════════════════════════════
+           NOISE TEXTURE OVERLAY
+           ═══════════════════════════════════════ */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+        }
+
+        /* ═══════════════════════════════════════
+           NAV
+           ═══════════════════════════════════════ */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.4s var(--ease-smooth);
+        }
+
+        .nav.scrolled {
+            background: rgba(5, 5, 7, 0.85);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding: 14px 40px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--gradient-hero);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .nav-logo-text {
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .nav-link {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover { color: var(--text-primary); }
+
+        .nav-cta {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #a5b4fc;
+            cursor: pointer;
+            transition: all 0.2s var(--ease-smooth);
+        }
+
+        .nav-cta:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+        }
+
+        /* ═══════════════════════════════════════
+           HERO SECTION
+           ═══════════════════════════════════════ */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 40px 80px;
+            overflow: hidden;
+        }
+
+        /* Ambient glow */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 900px;
+            height: 900px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 40%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Grid lines background */
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 70%);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px 6px 8px;
+            border-radius: 100px;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            font-size: 12px;
+            font-weight: 500;
+            color: #a5b4fc;
+            letter-spacing: 0.04em;
+            margin-bottom: 32px;
+            animation: fadeUp 0.8s var(--ease-out) both;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(48px, 8vw, 96px);
+            font-weight: 400;
+            line-height: 1.05;
+            text-align: center;
+            letter-spacing: -0.03em;
+            max-width: 900px;
+            animation: fadeUp 0.8s var(--ease-out) 0.1s both;
+        }
+
+        .hero-title em {
+            font-style: italic;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-sub {
+            font-size: clamp(16px, 2vw, 19px);
+            font-weight: 300;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 540px;
+            margin-top: 24px;
+            line-height: 1.7;
+            animation: fadeUp 0.8s var(--ease-out) 0.2s both;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 48px;
+            animation: fadeUp 0.8s var(--ease-out) 0.3s both;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 32px;
+            border-radius: 12px;
+            background: var(--gradient-hero);
+            color: white;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 50px rgba(99, 102, 241, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+
+        .btn-primary svg {
+            transition: transform 0.3s var(--ease-out);
+        }
+
+        .btn-primary:hover svg {
+            transform: translateX(3px);
+        }
+
+        .btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 400;
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: all 0.3s var(--ease-smooth);
+        }
+
+        .btn-ghost:hover {
+            color: var(--text-primary);
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.03);
+        }
+
+        /* ═══════════════════════════════════════
+           LIVE TICKER STRIP
+           ═══════════════════════════════════════ */
+        .ticker-section {
+            position: relative;
+            padding: 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.01);
+            overflow: hidden;
+        }
+
+        .ticker-track {
+            display: flex;
+            animation: tickerScroll 40s linear infinite;
+            width: max-content;
+        }
+
+        .ticker-track:hover { animation-play-state: paused; }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 40px;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .ticker-emoji { font-size: 16px; }
+
+        .ticker-title {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .ticker-prob {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .ticker-prob.high { color: var(--accent-emerald); }
+        .ticker-prob.mid { color: var(--accent-amber); }
+        .ticker-prob.low { color: var(--accent-rose); }
+
+        .ticker-vol {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════
+           FEATURES SECTION
+           ═══════════════════════════════════════ */
+        .features {
+            padding: 120px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent-indigo);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 400;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            max-width: 600px;
+            margin-bottom: 64px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .feature-card {
+            position: relative;
+            padding: 40px;
+            border-radius: 16px;
+            background: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.04);
+            overflow: hidden;
+            transition: all 0.4s var(--ease-out);
+        }
+
+        .feature-card:hover {
+            border-color: rgba(255,255,255,0.08);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover::after { opacity: 1; }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 24px;
+        }
+
+        .feature-icon.calendar { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.15); }
+        .feature-icon.surebet { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.15); }
+        .feature-icon.korea { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.15); }
+        .feature-icon.live { background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.15); }
+
+        .feature-name {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            font-weight: 300;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .feature-tag {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 400;
+        }
+
+        .feature-tag.blue { background: rgba(99,102,241,0.1); color: #a5b4fc; }
+        .feature-tag.green { background: rgba(34,197,94,0.1); color: #86efac; }
+        .feature-tag.red { background: rgba(239,68,68,0.1); color: #fca5a5; }
+        .feature-tag.cyan { background: rgba(6,182,212,0.1); color: #67e8f9; }
+
+        /* ═══════════════════════════════════════
+           APP PREVIEW SECTION
+           ═══════════════════════════════════════ */
+        .preview {
+            padding: 80px 40px 120px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .preview-frame {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: var(--bg-surface);
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.04),
+                0 40px 100px rgba(0,0,0,0.5),
+                0 0 80px rgba(99, 102, 241, 0.08);
+        }
+
+        .preview-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 20px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .preview-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .preview-dot.r { background: #ff5f57; }
+        .preview-dot.y { background: #febc2e; }
+        .preview-dot.g { background: #28c840; }
+
+        .preview-url {
+            flex: 1;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .preview-content {
+            padding: 32px;
+            min-height: 480px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Simulated calendar grid */
+        .sim-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .sim-title-group {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .sim-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent-indigo);
+        }
+
+        .sim-title {
+            font-family: var(--font-sans);
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .sim-live {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--accent-emerald);
+            letter-spacing: 0.08em;
+        }
+
+        .sim-live-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .sim-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 24px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 3px;
+        }
+
+        .sim-tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .sim-tab.active {
+            background: rgba(99, 102, 241, 0.12);
+            color: #a5b4fc;
+        }
+
+        .sim-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .sim-day-header {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            padding-bottom: 8px;
+            letter-spacing: 0.06em;
+        }
+
+        .sim-day {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.03);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.3s var(--ease-smooth);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sim-day:hover {
+            border-color: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .sim-day.today {
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.06);
+        }
+
+        .sim-day-num {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .sim-day.today .sim-day-num { color: var(--accent-indigo); }
+
+        .sim-event {
+            height: 4px;
+            border-radius: 2px;
+            opacity: 0.7;
+        }
+
+        .sim-event.e1 { background: var(--accent-indigo); width: 80%; }
+        .sim-event.e2 { background: var(--accent-emerald); width: 60%; }
+        .sim-event.e3 { background: var(--accent-amber); width: 70%; }
+        .sim-event.e4 { background: var(--accent-rose); width: 50%; }
+        .sim-event.e5 { background: var(--accent-cyan); width: 65%; }
+        .sim-event.e6 { background: var(--accent-violet); width: 55%; }
+
+        /* ═══════════════════════════════════════
+           STATS STRIP
+           ═══════════════════════════════════════ */
+        .stats {
+            padding: 80px 40px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.01);
+        }
+
+        .stats-grid {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .stat-item { text-align: center; }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 400;
+            line-height: 1;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* ═══════════════════════════════════════
+           CATEGORIES SECTION
+           ═══════════════════════════════════════ */
+        .categories {
+            padding: 120px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .cat-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 48px;
+        }
+
+        .cat-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            border-radius: 100px;
+            background: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: all 0.3s var(--ease-out);
+            cursor: default;
+        }
+
+        .cat-pill:hover {
+            border-color: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+        .cat-pill-emoji { font-size: 18px; }
+
+        .cat-pill-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .cat-pill-count {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════
+           CTA SECTION
+           ═══════════════════════════════════════ */
+        .cta {
+            padding: 120px 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta-title {
+            font-family: var(--font-display);
+            font-size: clamp(36px, 5vw, 60px);
+            font-weight: 400;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+        }
+
+        .cta-sub {
+            font-size: 16px;
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        /* ═══════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════ */
+        .footer {
+            padding: 40px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-left {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-link {
+            font-size: 12px;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .footer-link:hover { color: var(--text-secondary); }
+
+        /* ═══════════════════════════════════════
+           ANIMATIONS
+           ═══════════════════════════════════════ */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes tickerScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Stagger children */
+        .reveal-stagger > * {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+        }
+
+        .reveal-stagger.visible > *:nth-child(1) { transition-delay: 0s; }
+        .reveal-stagger.visible > *:nth-child(2) { transition-delay: 0.08s; }
+        .reveal-stagger.visible > *:nth-child(3) { transition-delay: 0.16s; }
+        .reveal-stagger.visible > *:nth-child(4) { transition-delay: 0.24s; }
+        .reveal-stagger.visible > *:nth-child(5) { transition-delay: 0.32s; }
+        .reveal-stagger.visible > *:nth-child(6) { transition-delay: 0.4s; }
+        .reveal-stagger.visible > *:nth-child(7) { transition-delay: 0.48s; }
+        .reveal-stagger.visible > *:nth-child(8) { transition-delay: 0.56s; }
+        .reveal-stagger.visible > *:nth-child(9) { transition-delay: 0.64s; }
+
+        .reveal-stagger.visible > * {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══════════════════════════════════════
+           MOBILE
+           ═══════════════════════════════════════ */
+        @media (max-width: 768px) {
+            .nav { padding: 16px 20px; }
+            .nav.scrolled { padding: 12px 20px; }
+            .nav-links { gap: 16px; }
+            .nav-link { display: none; }
+
+            .hero { padding: 100px 24px 60px; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .btn-primary, .btn-ghost { width: 100%; justify-content: center; }
+
+            .features { padding: 80px 24px; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .feature-card { padding: 28px; }
+
+            .preview { padding: 40px 24px 80px; }
+            .preview-content { padding: 16px; min-height: 320px; }
+            .sim-calendar { gap: 4px; }
+            .sim-day { padding: 4px; border-radius: 6px; }
+
+            .stats { padding: 60px 24px; }
+            .stats-grid { gap: 32px; flex-wrap: wrap; }
+
+            .categories { padding: 80px 24px; }
+
+            .cta { padding: 80px 24px; }
+
+            .footer { flex-direction: column; gap: 16px; text-align: center; padding: 32px 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { gap: 24px; }
+            .stat-item { min-width: 100px; }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Unified Header (sticky) -->
-        <header class="unified-header">
-            <!-- Row 1: Hero -->
-            <div class="page-hero">
-                <div class="hero-text">
-                    <div class="hero-eyebrow">Polymarket</div>
-                    <h1 class="hero-title">Event Calendar</h1>
-                </div>
-                <div class="hero-right">
-                    <!-- Admin Toggle (URL ?admin=1 일 때만 표시) -->
-                    <button class="icon-btn" id="adminToggle" title="Admin" style="display:none;">
-                        <svg class="lock-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <svg class="unlock-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                        </svg>
-                    </button>
-                    <!-- Theme Toggle -->
-                    <button class="icon-btn" id="themeToggle" title="Toggle Theme">
-                        <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="5"></circle>
-                            <line x1="12" y1="1" x2="12" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="23"></line>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                            <line x1="1" y1="12" x2="3" y2="12"></line>
-                            <line x1="21" y1="12" x2="23" y2="12"></line>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                        </svg>
-                        <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                        </svg>
-                    </button>
-                    <!-- Language Toggle -->
-                    <button class="icon-btn lang-toggle" id="langToggle" title="한국어 / English">
-                        <span class="lang-text">KO</span>
-                    </button>
-                    <div class="hero-badge">
-                        <span class="hero-badge-dot"></span>
-                        <span class="hero-badge-label">Live</span>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Row 2: Tabs + Search + Filter -->
-            <div class="page-tabs">
-                <div class="tabs-left">
-                    <button class="page-tab active" data-tab="calendar">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        <span>캘린더</span>
-                    </button>
-                    <button class="page-tab" data-tab="surebet">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
-                        <span>99% 마켓</span>
-                    </button>
-                    <button class="page-tab" data-tab="korea">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M2 12h20"></path>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                        </svg>
-                        <span>한국 예측</span>
-                    </button>
-                    <button class="page-tab" data-tab="live">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        <span>라이브</span>
-                    </button>
-                </div>
-                <div class="tabs-right">
-                    <div class="search-container">
-                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Search markets..." id="searchInput">
-                    </div>
-                    <button class="icon-btn filter-toggle-btn" id="filterToggleBtn" title="Filters">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                        </svg>
-                        <span class="filter-badge" id="filterBadge" style="display:none;"></span>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Quick Category Filters (calendar tab only) -->
-        <div class="quick-filters" id="quickFilters">
-            <!-- Category chips will be populated by JavaScript -->
+    <!-- NAV -->
+    <nav class="nav" id="nav">
+        <div class="nav-logo">
+            <div class="nav-logo-icon">P</div>
+            <span class="nav-logo-text">Polymarket Calendar</span>
         </div>
-
-        <!-- Hidden Filters Row (DOM preserved for JS references) -->
-        <div class="filters-row" id="filtersRow" style="display:none;">
-            <div class="active-filters" id="activeFilters">
-                <span class="filter-placeholder">Click to add filters</span>
-            </div>
-            <button class="clear-filters-btn" id="clearFilters" style="display:none;">Clear All</button>
+        <div class="nav-links">
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#preview" class="nav-link">Preview</a>
+            <a href="app.html" class="nav-cta">캘린더 열기 &rarr;</a>
         </div>
+    </nav>
 
-        <!-- Week View Section -->
-        <div class="week-section">
-            <div class="week-header">
-                <h2 class="week-title">이번 주 일정</h2>
-                <div class="week-header-right">
-                    <span class="week-range" id="weekRange">Jan 28 - Feb 3</span>
-                    <button class="icon-btn icon-btn-sm" id="densityToggle" title="카드 크기 조절"></button>
-                </div>
-            </div>
-            <div class="week-timeline" id="weekTimeline">
-                <!-- Week timeline will be generated by JavaScript -->
-            </div>
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-grid"></div>
+        <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            실시간 업데이트 중
         </div>
-
-        <!-- Calendar Overview Section -->
-        <div class="calendar-overview-section">
-            <div class="calendar-overview-header">
-                <h2 class="calendar-overview-title">Upcoming</h2>
-                <div class="calendar-nav">
-                    <button class="nav-btn" id="prevWeek">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <span class="calendar-range" id="calendarRange">Feb 4 - Feb 25</span>
-                    <button class="nav-btn" id="nextWeek">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="calendar-overview-grid">
-                <div class="calendar-overview-days" id="calendarOverviewDays">
-                    <!-- Days will be generated by JavaScript -->
-                </div>
-            </div>
+        <h1 class="hero-title">예측 시장의 모든<br>이벤트를 <em>한눈에</em></h1>
+        <p class="hero-sub">
+            Polymarket의 수백 개 이벤트를 캘린더, 타임라인, 확률 순위로<br>
+            정리해서 보여줍니다. 놓치는 마감 없이.
+        </p>
+        <div class="hero-actions">
+            <a href="app.html" class="btn-primary">
+                캘린더 바로가기
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <a href="#features" class="btn-ghost">더 알아보기</a>
         </div>
+    </section>
 
-        <!-- Sure Bet (99% Market) Section (hidden by default) -->
-        <div class="sb-view-section" id="sureBetSection" style="display:none;">
-            <div class="sb-view-header">
-                <div class="sb-header-left">
-                    <h2 class="sb-view-title">99% 마켓</h2>
-                    <span class="sb-view-subtitle">단기 확정 수익 기회</span>
-                    <span class="sb-view-count" id="sureBetCount">0개 기회</span>
-                    <span class="sb-live-badge">
-                        <span class="sb-live-dot" id="sureBetLiveDot"></span>
-                        <span>LIVE</span>
-                        <span class="sb-live-time" id="sureBetLiveTime"></span>
-                    </span>
-                </div>
-                <div class="sb-header-right">
-                    <div class="sb-prob-group">
-                        <span class="sb-group-label">최소 확률:</span>
-                        <button class="sb-prob-btn" data-prob="90">90%+</button>
-                        <button class="sb-prob-btn" data-prob="95">95%+</button>
-                        <button class="sb-prob-btn" data-prob="99">99%+</button>
-                    </div>
-                    <div class="sb-sort-group">
-                        <span class="sb-group-label">정렬:</span>
-                        <button class="sb-sort-btn" data-sort="annualized">연환산순</button>
-                        <button class="sb-sort-btn" data-sort="return">수익률순</button>
-                        <button class="sb-sort-btn" data-sort="endDate">마감순</button>
-                        <button class="sb-sort-btn" data-sort="volume">거래량순</button>
-                    </div>
-                </div>
-            </div>
-            <div class="sb-disclaimer">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <span>높은 확률이 100% 확정을 의미하지 않습니다. 거래량과 유동성을 반드시 확인하세요.</span>
-            </div>
-            <div id="sureBetStats"></div>
-            <div class="sb-category-filters" id="sureBetCategoryFilters">
-                <!-- Category chips rendered by JS -->
-            </div>
-            <div class="sb-cards-grid" id="sureBetCardsGrid">
-                <!-- Sure bet cards rendered by JS -->
-            </div>
-        </div>
-
-        <!-- Korea View Section (hidden by default) -->
-        <div class="korea-view-section" id="koreaViewSection" style="display:none;">
-            <div class="korea-view-header">
-                <div class="korea-header-left">
-                    <h2 class="korea-view-title">한국 관련 예측 시장</h2>
-                    <span class="korea-view-count" id="koreaViewCount">0개 시장</span>
-                </div>
-                <div class="korea-header-right">
-                    <div class="korea-sort-group">
-                        <span class="korea-sort-label">정렬:</span>
-                        <button class="korea-sort-btn active" data-sort="endDate">종료일순</button>
-                        <button class="korea-sort-btn" data-sort="volume">거래량순</button>
-                        <button class="korea-sort-btn" data-sort="probability">확률순</button>
-                    </div>
-                </div>
-            </div>
-            <div class="korea-category-filters" id="koreaCategoryFilters">
-                <!-- Korea category chips rendered by JS -->
-            </div>
-            <div class="korea-cards-grid" id="koreaCardsGrid">
-                <!-- Korea market cards rendered by JS -->
-            </div>
-        </div>
-
-        <!-- Live Tracker Section (hidden by default) -->
-        <div class="live-view-section" id="liveViewSection" style="display:none;">
-            <div class="live-view-header">
-                <div class="live-header-left">
-                    <h2 class="live-view-title">라이브 트래커</h2>
-                    <span class="live-view-subtitle">시장 × 실시간 데이터</span>
-                    <span class="live-badge">
-                        <span class="live-badge-dot"></span>
-                        <span>LIVE</span>
-                    </span>
-                </div>
-            </div>
-            <div class="live-sub-tabs">
-                <button class="live-sub-tab active" data-subtab="weather">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                    </svg>
-                    날씨
-                </button>
-                <button class="live-sub-tab disabled" data-subtab="crypto" disabled>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                    크립토
-                    <span class="coming-soon-badge">soon</span>
-                </button>
-                <button class="live-sub-tab disabled" data-subtab="finance" disabled>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-                        <polyline points="16 7 22 7 22 13"></polyline>
-                    </svg>
-                    금융
-                    <span class="coming-soon-badge">soon</span>
-                </button>
-                <button class="live-sub-tab disabled" data-subtab="rates" disabled>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                    </svg>
-                    금리
-                    <span class="coming-soon-badge">soon</span>
-                </button>
-            </div>
-            <div class="live-content" id="liveContent">
-                <!-- 도시 위젯 + 인라인 확장 영역이 JS로 렌더됨 -->
-                <div class="live-loading">
-                    <div class="live-loading-spinner"></div>
-                    <span>날씨 데이터 로드 중...</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Event Modal -->
-        <div class="modal-overlay" id="modalOverlay">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3 class="modal-title" id="modalDate">Events</h3>
-                    <button class="modal-close" id="modalClose">&times;</button>
-                </div>
-                <div class="modal-body" id="modalBody">
-                    <!-- Events will be listed here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Filter Modal -->
-        <div class="modal-overlay" id="filterModalOverlay">
-            <div class="modal filter-modal">
-                <div class="modal-header">
-                    <h3 class="modal-title" id="filterModalTitle">Filters</h3>
-                    <button class="modal-close" id="filterModalClose">&times;</button>
-                </div>
-                <div class="modal-body filter-modal-body">
-                    <!-- Tags Section -->
-                    <div class="filter-section">
-                        <div class="filter-section-header">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                            </svg>
-                            <span id="filterTagsLabel">Tags:</span> <span id="tagCount">(0)</span>
-                            <button class="show-less-btn" id="showLessTags">Show Less</button>
-                        </div>
-                        <div class="filter-search">
-                            <input type="text" placeholder="Search tags..." id="tagSearchInput">
-                        </div>
-                        <div class="filter-tags" id="filterTags">
-                            <!-- Tags will be populated dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- Categories Section -->
-                    <div class="filter-section">
-                        <div class="filter-section-header">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"></path>
-                            </svg>
-                            <span id="filterCategoriesLabel">Hide Categories:</span>
-                        </div>
-                        <div class="filter-categories" id="filterCategories">
-                            <!-- Categories will be populated dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- Time Remaining Section -->
-                    <div class="filter-section">
-                        <div class="filter-section-header">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                            <span id="filterTimeLabel">Time remaining:</span>
-                        </div>
-                        <div class="filter-options" id="timeRemainingOptions">
-                            <button class="filter-option active" data-value="all">All</button>
-                            <button class="filter-option" data-value="1">&lt; 1 day</button>
-                            <button class="filter-option" data-value="7">&lt; 7 days</button>
-                            <button class="filter-option" data-value="30">&lt; 30 days</button>
-                        </div>
-                    </div>
-
-                    <!-- Min Volume Section -->
-                    <div class="filter-section">
-                        <div class="filter-section-header">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-                                <polyline points="16 7 22 7 22 13"></polyline>
-                            </svg>
-                            <span id="filterVolumeLabel">Min Volume:</span>
-                        </div>
-                        <div class="filter-options" id="minVolumeOptions">
-                            <button class="filter-option active" data-value="0">All</button>
-                            <button class="filter-option" data-value="1000">>$1K</button>
-                            <button class="filter-option" data-value="10000">>$10K</button>
-                            <button class="filter-option" data-value="100000">>$100K</button>
-                            <button class="filter-option" data-value="1000000">>$1M</button>
-                        </div>
-                    </div>
-
-                    <!-- Min Liquidity Section -->
-                    <div class="filter-section">
-                        <div class="filter-section-header">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-                            </svg>
-                            <span id="filterLiquidityLabel">Min Liquidity:</span>
-                        </div>
-                        <div class="filter-options" id="minLiquidityOptions">
-                            <button class="filter-option active" data-value="0">All</button>
-                            <button class="filter-option" data-value="1000">>$1K</button>
-                            <button class="filter-option" data-value="10000">>$10K</button>
-                            <button class="filter-option" data-value="100000">>$100K</button>
-                            <button class="filter-option" data-value="1000000">>$1M</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" id="resetFilters">Reset</button>
-                    <button class="btn btn-primary" id="applyFilters">Apply Filters</button>
-                </div>
-            </div>
+    <!-- TICKER -->
+    <div class="ticker-section">
+        <div class="ticker-track" id="ticker">
+            <!-- Duplicated for infinite scroll -->
         </div>
     </div>
 
-    <!-- Admin Login Modal -->
-    <div class="modal-overlay" id="adminLoginOverlay">
-        <div class="modal" style="max-width:400px;">
-            <div class="modal-header">
-                <h3 class="modal-title">Admin Login</h3>
-                <button class="modal-close" id="adminLoginClose">&times;</button>
+    <!-- FEATURES -->
+    <section class="features" id="features">
+        <div class="section-label reveal">Features</div>
+        <h2 class="section-title reveal">데이터를 보는<br>새로운 방식</h2>
+        <div class="feature-grid reveal-stagger" id="featureGrid">
+            <div class="feature-card">
+                <div class="feature-icon calendar">📅</div>
+                <h3 class="feature-name">이벤트 캘린더</h3>
+                <p class="feature-desc">
+                    7일 타임라인과 21일 오버뷰 그리드로 다가오는 예측 시장 이벤트를 한눈에 파악합니다.
+                    시간대별 색상 코딩으로 마감 시점을 직관적으로 확인하세요.
+                </p>
+                <span class="feature-tag blue">Week Timeline + Grid</span>
             </div>
-            <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
-                <input type="email" id="v2AdminEmail" placeholder="이메일" class="admin-input" required>
-                <input type="password" id="v2AdminPassword" placeholder="비밀번호" class="admin-input" required>
-                <div id="v2LoginError" style="color:var(--accent-red);font-size:0.8rem;min-height:20px;"></div>
+            <div class="feature-card">
+                <div class="feature-icon surebet">💰</div>
+                <h3 class="feature-name">99% 마켓 (Sure Bet)</h3>
+                <p class="feature-desc">
+                    확률 90% 이상의 고확률 마켓을 연환산 수익률 기준으로 정렬합니다.
+                    안전도 등급(A/B/C)과 마감 카운트다운으로 리스크를 관리하세요.
+                </p>
+                <span class="feature-tag green">Annualized Return Ranking</span>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="v2LoginCancel">취소</button>
-                <button class="btn btn-primary" id="v2LoginSubmit">로그인</button>
+            <div class="feature-card">
+                <div class="feature-icon korea">🇰🇷</div>
+                <h3 class="feature-name">한국 마켓</h3>
+                <p class="feature-desc">
+                    한국 관련 예측 시장만 모아서 보여줍니다.
+                    한국어 번역과 함께 제공되어 별도 검색 없이 확인 가능합니다.
+                </p>
+                <span class="feature-tag red">Korean Translation</span>
             </div>
-        </div>
-    </div>
-
-    <!-- Admin Edit Modal -->
-    <div class="modal-overlay" id="v2EditOverlay">
-        <div class="modal" style="max-width:700px;">
-            <div class="modal-header">
-                <h3 class="modal-title">시장 편집</h3>
-                <button class="modal-close" id="v2EditClose">&times;</button>
-            </div>
-            <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
-                <div class="v2-edit-field">
-                    <label class="v2-label">Title (EN)
-                        <a id="v2EditPolyLink" href="#" target="_blank" class="v2-poly-link" style="display:none;">Polymarket에서 보기 &rarr;</a>
-                    </label>
-                    <div class="v2-readonly" id="v2EditTitleEn"></div>
-                </div>
-                <div class="v2-edit-field">
-                    <label class="v2-label">Title (KO)</label>
-                    <textarea id="v2EditTitleKo" rows="2" class="admin-input" placeholder="한국어 번역"></textarea>
-                </div>
-                <div class="v2-edit-field">
-                    <label class="v2-label">Category</label>
-                    <select id="v2EditCategory" class="admin-input">
-                        <option value="Sports">Sports</option>
-                        <option value="Crypto">Crypto</option>
-                        <option value="Politics">Politics</option>
-                        <option value="Finance">Finance</option>
-                        <option value="Pop Culture">Pop Culture</option>
-                        <option value="Science">Science</option>
-                        <option value="Business">Business</option>
-                        <option value="Technology">Technology</option>
-                        <option value="Gaming">Gaming</option>
-                        <option value="Music">Music</option>
-                        <option value="Uncategorized">Uncategorized</option>
-                    </select>
-                </div>
-                <div class="v2-edit-field">
-                    <label class="v2-label">Description (Rules)</label>
-                    <div class="v2-readonly v2-desc-field" id="v2EditDescription">-</div>
-                </div>
-                <div class="v2-edit-field">
-                    <label class="v2-label">Description (KO)</label>
-                    <textarea id="v2EditDescriptionKo" rows="4" class="admin-input" placeholder="한국어 규칙 설명"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="v2EditCancel">취소</button>
-                <button class="btn btn-primary" id="v2EditSave">저장</button>
+            <div class="feature-card">
+                <div class="feature-icon live">⚡</div>
+                <h3 class="feature-name">라이브 트래커</h3>
+                <p class="feature-desc">
+                    날씨, 암호화폐, 금융 등 실시간 데이터와 예측 시장 확률을 비교합니다.
+                    기상청 API 연동으로 날씨 마켓의 실제 결과를 추적합니다.
+                </p>
+                <span class="feature-tag cyan">Real-time API Integration</span>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Admin Stats Banner (hidden until login) -->
-    <div id="adminStatsBanner" class="admin-stats-banner" style="display:none;">
-        <div class="admin-stats-inner">
-            <span class="admin-badge">ADMIN</span>
-            <span class="admin-stat-item" id="v2StatInfo">-</span>
-            <button class="admin-signout-btn" id="v2SignOut">로그아웃</button>
+    <!-- PREVIEW -->
+    <section class="preview reveal" id="preview">
+        <div class="preview-frame">
+            <div class="preview-bar">
+                <span class="preview-dot r"></span>
+                <span class="preview-dot y"></span>
+                <span class="preview-dot g"></span>
+                <span class="preview-url">polymarket-calender.vercel.app</span>
+            </div>
+            <div class="preview-content">
+                <div class="sim-header">
+                    <div class="sim-title-group">
+                        <span class="sim-eyebrow">Polymarket</span>
+                        <span class="sim-title">Event Calendar</span>
+                    </div>
+                    <div class="sim-live">
+                        <span class="sim-live-dot"></span>
+                        LIVE
+                    </div>
+                </div>
+                <div class="sim-tabs">
+                    <span class="sim-tab active">📅 Calendar</span>
+                    <span class="sim-tab">💰 99% Market</span>
+                    <span class="sim-tab">🇰🇷 Korea</span>
+                    <span class="sim-tab">⚡ Live</span>
+                </div>
+                <div class="sim-calendar" id="simCalendar">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Admin Toast -->
-    <div id="v2Toast" class="v2-toast"></div>
+    <!-- STATS -->
+    <section class="stats reveal">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number" data-count="500">0</div>
+                <div class="stat-label">Active Markets</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="9">0</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="21">0</div>
+                <div class="stat-label">Day Overview</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">5m</div>
+                <div class="stat-label">Cache Refresh</div>
+            </div>
+        </div>
+    </section>
 
-    <script type="module" src="/src/main.ts"></script>
+    <!-- CATEGORIES -->
+    <section class="categories" id="categories">
+        <div class="section-label reveal">Categories</div>
+        <h2 class="section-title reveal">모든 분야를<br>커버합니다</h2>
+        <div class="cat-grid reveal-stagger">
+            <div class="cat-pill"><span class="cat-pill-emoji">⚽</span><span class="cat-pill-name">Sports</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">💰</span><span class="cat-pill-name">Crypto</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">🏛️</span><span class="cat-pill-name">Politics</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">🎬</span><span class="cat-pill-name">Pop Culture</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">🔬</span><span class="cat-pill-name">Science</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">💼</span><span class="cat-pill-name">Business</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">💻</span><span class="cat-pill-name">Technology</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">🎮</span><span class="cat-pill-name">Gaming</span></div>
+            <div class="cat-pill"><span class="cat-pill-emoji">🎵</span><span class="cat-pill-name">Music</span></div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta reveal">
+        <h2 class="cta-title">지금 바로<br>시작하세요</h2>
+        <p class="cta-sub">로그인 없이 무료로 사용할 수 있습니다</p>
+        <a href="app.html" class="btn-primary">
+            캘린더 열기
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-left">&copy; 2025 Polymarket Community Calendar. Open-source project.</div>
+        <div class="footer-links">
+            <a href="app.html" class="footer-link">Calendar</a>
+            <a href="app.html#surebet" class="footer-link">99% Market</a>
+            <a href="app.html#korea" class="footer-link">Korea</a>
+        </div>
+    </footer>
+
+    <script>
+        /* ═══════ NAV SCROLL ═══════ */
+        const nav = document.getElementById('nav');
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    nav.classList.toggle('scrolled', window.scrollY > 40);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+
+        /* ═══════ SCROLL REVEAL ═══════ */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    e.target.classList.add('visible');
+                    observer.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => observer.observe(el));
+
+        /* ═══════ TICKER ═══════ */
+        const tickerData = [
+            { emoji: '🏛️', title: 'US Presidential Election 2028', prob: 62, vol: '$45M' },
+            { emoji: '💰', title: 'BTC above $150k by Dec', prob: 34, vol: '$12M' },
+            { emoji: '⚽', title: 'Champions League Final Winner', prob: 78, vol: '$8M' },
+            { emoji: '🔬', title: 'AGI achieved by 2027?', prob: 11, vol: '$5M' },
+            { emoji: '🎬', title: 'Oscar Best Picture 2027', prob: 45, vol: '$2M' },
+            { emoji: '💻', title: 'Apple releases foldable iPhone', prob: 28, vol: '$6M' },
+            { emoji: '🏛️', title: 'Fed rate cut in Q2 2026', prob: 88, vol: '$22M' },
+            { emoji: '🎮', title: 'GTA 6 releases on time', prob: 55, vol: '$3M' },
+        ];
+
+        function buildTicker() {
+            const track = document.getElementById('ticker');
+            const items = tickerData.map(d => {
+                const probClass = d.prob >= 60 ? 'high' : d.prob >= 30 ? 'mid' : 'low';
+                return `<div class="ticker-item">
+                    <span class="ticker-emoji">${d.emoji}</span>
+                    <span class="ticker-title">${d.title}</span>
+                    <span class="ticker-prob ${probClass}">${d.prob}%</span>
+                    <span class="ticker-vol">${d.vol}</span>
+                </div>`;
+            }).join('');
+            track.innerHTML = items + items; // duplicate for seamless loop
+        }
+        buildTicker();
+
+        /* ═══════ SIMULATED CALENDAR ═══════ */
+        function buildSimCalendar() {
+            const cal = document.getElementById('simCalendar');
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const eventClasses = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'];
+
+            let html = days.map(d => `<div class="sim-day-header">${d}</div>`).join('');
+
+            for (let i = 1; i <= 21; i++) {
+                const isToday = i === 3;
+                const eventCount = Math.floor(Math.random() * 4);
+                let events = '';
+                for (let j = 0; j < eventCount; j++) {
+                    const cls = eventClasses[Math.floor(Math.random() * eventClasses.length)];
+                    events += `<div class="sim-event ${cls}"></div>`;
+                }
+                html += `<div class="sim-day${isToday ? ' today' : ''}">
+                    <span class="sim-day-num">${i}</span>
+                    ${events}
+                </div>`;
+            }
+            cal.innerHTML = html;
+        }
+        buildSimCalendar();
+
+        /* ═══════ COUNT-UP ANIMATION ═══════ */
+        const countObserver = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    const el = e.target;
+                    const target = parseInt(el.dataset.count);
+                    if (!target) return;
+                    let current = 0;
+                    const step = Math.max(1, Math.floor(target / 40));
+                    const interval = setInterval(() => {
+                        current += step;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(interval);
+                        }
+                        el.textContent = current.toLocaleString() + (target >= 100 ? '+' : '');
+                    }, 30);
+                    countObserver.unobserve(el);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('[data-count]').forEach(el => countObserver.observe(el));
+
+        /* ═══════ SMOOTH ANCHOR SCROLL ═══════ */
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                const target = document.querySelector(a.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
 </body>
 </html>

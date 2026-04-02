@@ -18,16 +18,20 @@
       "destination": "https://apihub.kma.go.kr/api/:path*"
     },
     {
+      "source": "/app",
+      "destination": "/app.html"
+    },
+    {
       "source": "/99market",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/komarket",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/live",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }
   ]
 }
