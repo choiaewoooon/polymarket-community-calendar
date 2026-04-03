@@ -58,3 +58,45 @@ CREATE INDEX IF NOT EXISTS idx_poly_events_volume_24hr ON poly_events(volume_24h
 CREATE INDEX IF NOT EXISTS idx_poly_events_category ON poly_events(category);
 CREATE INDEX IF NOT EXISTS idx_poly_events_api_created_at ON poly_events(api_created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_poly_events_tags ON poly_events USING GIN(tags);
+
+-- ═══════════════════════════════════════════
+-- 추가 컬럼 (ETL + 프론트엔드에서 사용)
+-- ═══════════════════════════════════════════
+-- ALTER TABLE poly_events ADD COLUMN IF NOT EXISTS is_korea BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE poly_events ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE poly_events ADD COLUMN IF NOT EXISTS closed BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE poly_events ADD COLUMN IF NOT EXISTS title_ko TEXT;
+-- ALTER TABLE poly_events ADD COLUMN IF NOT EXISTS description_ko TEXT;
+
+-- 추가 인덱스
+-- CREATE INDEX IF NOT EXISTS idx_poly_events_is_korea ON poly_events(is_korea) WHERE is_korea = TRUE;
+-- CREATE INDEX IF NOT EXISTS idx_poly_events_hidden ON poly_events(hidden) WHERE hidden = FALSE;
+
+-- ═══════════════════════════════════════════
+-- 캐시 무효화 테이블
+-- ═══════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS cache_meta (
+    key TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ═══════════════════════════════════════════
+-- 날씨 예보 정확도 추적 테이블
+-- ═══════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS weather_forecast_accuracy (
+    id SERIAL PRIMARY KEY,
+    city TEXT NOT NULL,
+    market_date DATE NOT NULL,
+    forecast_high NUMERIC,
+    actual_high NUMERIC,
+    error NUMERIC,
+    abs_error NUMERIC,
+    unit TEXT DEFAULT 'C',
+    forecast_source TEXT,
+    actual_source TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(city, market_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wfa_city_date ON weather_forecast_accuracy(city, market_date DESC);

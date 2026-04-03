@@ -5,6 +5,10 @@
   "crons": [
     {
       "path": "/api/cron-weather",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron-weather",
       "schedule": "0 13 * * *"
     }
   ],

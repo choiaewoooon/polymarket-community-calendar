@@ -6,9 +6,9 @@
  * Vercel Cron은 cron expression으로 스케줄링됨 (vercel.json에서 설정)
  */
 
-const KMA_AUTH_KEY = '16tey01xR-irXstNcTfo0w';
-const WU_API_KEY = 'e1f10a1e78da46f5b10a1e78da96f525';
-const WU_STATION = 'RKSI:9:KR';
+const KMA_AUTH_KEY = process.env.KMA_AUTH_KEY;
+const WU_API_KEY = process.env.WU_API_KEY;
+const WU_STATION = process.env.WU_STATION || 'RKSI:9:KR';
 const KMA_NX = 51;
 const KMA_NY = 124;
 
@@ -186,6 +186,11 @@ export default async function handler(req, res) {
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // API 키 환경변수 검증
+    if (!KMA_AUTH_KEY || !WU_API_KEY) {
+        return res.status(500).json({ error: 'Weather API keys not configured in environment variables' });
     }
 
     try {

@@ -218,15 +218,21 @@ function initPageTabs(): void {
 async function switchTab(tab: PageTab, pushState = true): Promise<void> {
     setCurrentTab(tab);
 
+    // body에 탭별 클래스 적용 (CSS 스타일 분기용)
+    document.body.classList.remove('tab-calendar', 'tab-99market', 'tab-komarket', 'tab-live');
+    document.body.classList.add(`tab-${tab}`);
+
     // URL 업데이트 (pushState=false일 때는 popstate에서 호출된 경우)
     const targetPath = TAB_TO_PATH[tab];
     if (pushState && window.location.pathname !== targetPath) {
         history.pushState({ tab }, '', targetPath);
     }
 
-    // 탭 버튼 활성화 상태
+    // 탭 버튼 활성화 상태 + a11y
     document.querySelectorAll('.page-tab').forEach(btn => {
-        btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
+        const isActive = (btn as HTMLElement).dataset.tab === tab;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
     });
 
     // 캘린더 관련 섹션들 (info-banner, toolbar 제거됨 — Phase 1 리뉴얼)

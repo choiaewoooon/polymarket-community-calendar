@@ -5431,6 +5431,19 @@ body.admin-mode .container {
     padding-bottom: 7px;
 }
 
+/* 라이브 탭: 스크롤 시 hero 영역 완전 축소 — 컨텐츠 가시성 확보 */
+body.tab-live .unified-header.scrolled .page-hero {
+    padding-top: 0;
+    padding-bottom: 0;
+    max-height: 0;
+    overflow: hidden;
+    border: none;
+}
+
+body.tab-live .unified-header.scrolled .hero-right {
+    display: none;
+}
+
 /* Card hover glow enhancement */
 .korea-card:hover,
 .sb-card:hover {

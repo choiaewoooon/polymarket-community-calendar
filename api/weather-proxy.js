@@ -3,14 +3,28 @@
  * 클라이언트는 /api/weather-proxy?type=...&params 로 호출
  */
 
-const WU_API_KEY = process.env.WU_API_KEY || 'e1f10a1e78da46f5b10a1e78da96f525';
-const KMA_AUTH_KEY = process.env.KMA_AUTH_KEY || '16tey01xR-irXstNcTfo0w';
+const WU_API_KEY = process.env.WU_API_KEY;
+const KMA_AUTH_KEY = process.env.KMA_AUTH_KEY;
+
+// 허용 도메인 목록
+const ALLOWED_ORIGINS = [
+    'https://polymarket-calender.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:4173',
+];
 
 export default async function handler(req, res) {
+    // API 키 미설정 시 서버 에러
+    if (!WU_API_KEY || !KMA_AUTH_KEY) {
+        return res.status(500).json({ error: 'API keys not configured in environment variables' });
+    }
+
     const { type, ...params } = req.query;
 
-    // CORS 허용
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS 제한: 허용 도메인만 허용
+    const origin = req.headers.origin || req.headers.referer || '';
+    const allowedOrigin = ALLOWED_ORIGINS.find(o => origin.startsWith(o));
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin || ALLOWED_ORIGINS[0]);
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
 
     try {

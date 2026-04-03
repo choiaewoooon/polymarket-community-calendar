@@ -45,6 +45,23 @@ const LIVE_REFRESH_INTERVAL = 60 * 1000;
 let liveRefreshTimer: ReturnType<typeof setInterval> | null = null;
 let lastLiveUpdateTime: Date | null = null;
 
+// 날짜 파싱 헬퍼: "March 14" → Date 객체 (연도 자동 결정)
+function parseTargetDate(targetDate: string): Date {
+    const now = new Date();
+    const parsed = new Date(`${targetDate}, ${now.getFullYear()}`);
+    if (isNaN(parsed.getTime())) return now;
+    // 현재 날짜와 6개월 이상 차이나면 연도 보정
+    const diff = parsed.getTime() - now.getTime();
+    const sixMonths = 180 * 24 * 60 * 60 * 1000;
+    if (diff > sixMonths) parsed.setFullYear(parsed.getFullYear() - 1);
+    else if (diff < -sixMonths) parsed.setFullYear(parsed.getFullYear() + 1);
+    return parsed;
+}
+
+// race condition 방지용 렌더링 락
+let isRendering = false;
+let renderAbortController: AbortController | null = null;
+
 // 과거 결과 저장 (city → date → markets)
 let pastDayResults: Map<string, Map<string, WeatherMarket[]>> = new Map();
 
@@ -201,7 +218,7 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
         if (!items || items.length === 0) throw new Error('KMA 응답 데이터 없음');
 
         // targetDate 파싱 ("March 14" → "20260314")
-        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
+        const targetDateObj = parseTargetDate(targetDate);
         const targetYmd = `${targetDateObj.getFullYear()}${String(targetDateObj.getMonth() + 1).padStart(2, '0')}${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         // TMP(시간별 기온) + TMX(공식 최고기온) 추출
@@ -259,7 +276,7 @@ async function fetchKmaForecastFixed(targetDate: string): Promise<HourlyWeather 
         if (!items || items.length === 0) throw new Error('KMA 응답 데이터 없음');
 
         // targetDate 파싱 ("March 14" → "20260314")
-        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
+        const targetDateObj = parseTargetDate(targetDate);
         const targetYmd = `${targetDateObj.getFullYear()}${String(targetDateObj.getMonth() + 1).padStart(2, '0')}${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         const hours: string[] = [];
@@ -318,7 +335,7 @@ async function fetchWeatherComForecast(city: string, targetDate: string): Promis
         const allTimes: string[] = json.validTimeLocal || [];
         if (allTemps.length === 0) return null;
 
-        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
+        const targetDateObj = parseTargetDate(targetDate);
         const targetISO = `${targetDateObj.getFullYear()}-${String(targetDateObj.getMonth() + 1).padStart(2, '0')}-${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         const hours: string[] = [];
@@ -656,11 +673,23 @@ export function renderLiveTrackerView(): void {
 export function startLiveAutoRefresh(): void {
     stopLiveAutoRefresh();
     liveRefreshTimer = setInterval(async () => {
-        // 캐시 무효화 후 재로드
-        weatherDataCache.clear();
-        forecastDataCache.clear();
-        await loadLiveWeatherMarkets();
-        renderLiveTrackerView();
+        // 이전 렌더링이 진행 중이면 건너뜀
+        if (isRendering) return;
+        isRendering = true;
+        try {
+            // 이전 요청 취소
+            if (renderAbortController) renderAbortController.abort();
+            renderAbortController = new AbortController();
+            // 캐시 무효화 후 재로드
+            weatherDataCache.clear();
+            forecastDataCache.clear();
+            await loadLiveWeatherMarkets();
+            if (!renderAbortController.signal.aborted) {
+                renderLiveTrackerView();
+            }
+        } finally {
+            isRendering = false;
+        }
     }, LIVE_REFRESH_INTERVAL);
 }
 
@@ -1544,10 +1573,12 @@ interface ForecastAccuracyRow {
     actual_source: string | null;
 }
 
-let forecastAccuracyCache: Map<string, ForecastAccuracyRow[]> = new Map();
+let forecastAccuracyCache: Map<string, { data: ForecastAccuracyRow[], fetchedAt: number }> = new Map();
+const FORECAST_CACHE_TTL = 5 * 60 * 1000; // 5분 TTL
 
 async function fetchForecastAccuracy(city: string): Promise<ForecastAccuracyRow[]> {
-    if (forecastAccuracyCache.has(city)) return forecastAccuracyCache.get(city)!;
+    const cached = forecastAccuracyCache.get(city);
+    if (cached && Date.now() - cached.fetchedAt < FORECAST_CACHE_TTL) return cached.data;
 
     try {
         const { data, error } = await supabaseClient
@@ -1557,7 +1588,7 @@ async function fetchForecastAccuracy(city: string): Promise<ForecastAccuracyRow[
             .order('market_date', { ascending: false });
 
         if (error || !data) return [];
-        forecastAccuracyCache.set(city, data);
+        forecastAccuracyCache.set(city, { data, fetchedAt: Date.now() });
         return data;
     } catch {
         return [];

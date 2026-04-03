@@ -4,12 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polymarket Community - Event Calendar</title>
+    <meta name="description" content="Polymarket 예측 시장 이벤트를 캘린더, 99% 마켓, 한국 마켓, 날씨 라이브 트래커로 확인하세요.">
+    <!-- Open Graph -->
+    <meta property="og:title" content="Polymarket Community Calendar">
+    <meta property="og:description" content="예측 시장 이벤트를 캘린더와 라이브 트래커로 시각화">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://polymarket-calender.vercel.app/app">
+    <meta property="og:image" content="https://polymarket-calender.vercel.app/og-image.png">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Polymarket Community Calendar">
+    <meta name="twitter:description" content="예측 시장 이벤트를 캘린더와 라이브 트래커로 시각화">
+    <meta name="twitter:image" content="https://polymarket-calender.vercel.app/og-image.png">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <!-- Unified Header (sticky) -->
-        <header class="unified-header">
+        <header class="unified-header" role="banner">
             <!-- Row 1: Hero -->
             <div class="page-hero">
                 <div class="hero-text">
@@ -58,8 +72,8 @@
 
             <!-- Row 2: Tabs + Search + Filter -->
             <div class="page-tabs">
-                <div class="tabs-left">
-                    <button class="page-tab active" data-tab="calendar">
+                <nav class="tabs-left" role="tablist" aria-label="메인 탭 내비게이션">
+                    <button class="page-tab active" data-tab="calendar" role="tab" aria-selected="true" aria-controls="calendarView">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -68,13 +82,13 @@
                         </svg>
                         <span>캘린더</span>
                     </button>
-                    <button class="page-tab" data-tab="surebet">
+                    <button class="page-tab" data-tab="surebet" role="tab" aria-selected="false" aria-controls="sureBetSection">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                         </svg>
                         <span>99% 마켓</span>
                     </button>
-                    <button class="page-tab" data-tab="korea">
+                    <button class="page-tab" data-tab="korea" role="tab" aria-selected="false" aria-controls="koreaViewSection">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"></circle>
                             <path d="M2 12h20"></path>
@@ -82,14 +96,14 @@
                         </svg>
                         <span>한국 예측</span>
                     </button>
-                    <button class="page-tab" data-tab="live">
+                    <button class="page-tab" data-tab="live" role="tab" aria-selected="false" aria-controls="liveViewSection">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                         <span>라이브</span>
                     </button>
-                </div>
+                </nav>
                 <div class="tabs-right">
                     <div class="search-container">
                         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -161,7 +175,7 @@
         </div>
 
         <!-- Sure Bet (99% Market) Section (hidden by default) -->
-        <div class="sb-view-section" id="sureBetSection" style="display:none;">
+        <div class="sb-view-section" id="sureBetSection" role="tabpanel" aria-label="99% 마켓" style="display:none;">
             <div class="sb-view-header">
                 <div class="sb-header-left">
                     <h2 class="sb-view-title">99% 마켓</h2>
@@ -207,7 +221,7 @@
         </div>
 
         <!-- Korea View Section (hidden by default) -->
-        <div class="korea-view-section" id="koreaViewSection" style="display:none;">
+        <div class="korea-view-section" id="koreaViewSection" role="tabpanel" aria-label="한국 예측" style="display:none;">
             <div class="korea-view-header">
                 <div class="korea-header-left">
                     <h2 class="korea-view-title">한국 관련 예측 시장</h2>
@@ -231,7 +245,7 @@
         </div>
 
         <!-- Live Tracker Section (hidden by default) -->
-        <div class="live-view-section" id="liveViewSection" style="display:none;">
+        <div class="live-view-section" id="liveViewSection" role="tabpanel" aria-label="라이브 트래커" style="display:none;">
             <div class="live-view-header">
                 <div class="live-header-left">
                     <h2 class="live-view-title">라이브 트래커</h2>
