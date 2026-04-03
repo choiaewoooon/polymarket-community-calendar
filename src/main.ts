@@ -16,6 +16,11 @@ import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
 import type { Filters } from './types.ts';
 
+// requestIdleCallback 폴리필 (Safari 대응)
+const _ric = window.requestIdleCallback || ((cb: IdleRequestCallback, opts?: IdleRequestOptions) =>
+    setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline), opts?.timeout ?? 1));
+const requestIdleCallback = _ric;
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 앱 시작');
 
@@ -51,6 +56,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         await switchTab(initialTab);
     }
 
+    // 유휴 시간에 다른 탭 데이터 프리페치 (사용자 인터랙션 차단하지 않음)
+    requestIdleCallback(() => {
+        prefetchTabData(initialTab);
+    }, { timeout: 3000 });
+
     // 브라우저 뒤로/앞으로 버튼 처리
     window.addEventListener('popstate', () => {
         const tab = getTabFromPath();
@@ -59,6 +69,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// 유휴 시간에 다른 탭 데이터 미리 로드 (탭 전환 시 즉시 표시)
+function prefetchTabData(currentTab: PageTab): void {
+    const prefetchQueue: (() => Promise<void>)[] = [];
+
+    // 현재 탭이 아닌 데이터를 백그라운드에서 미리 로드
+    if (currentTab !== 'korea' && koreaEvents.length === 0) {
+        prefetchQueue.push(() => loadKoreaData());
+    }
+    if (currentTab !== 'surebet' && sureBetEvents.length === 0) {
+        prefetchQueue.push(() => loadSureBetData());
+    }
+
+    // 순차 프리페치 (네트워크 폭주 방지)
+    (async () => {
+        for (const task of prefetchQueue) {
+            try { await task(); } catch { /* 프리페치 실패 무시 */ }
+        }
+    })();
+}
 
 function setupEventListeners(): void {
     // Density toggle

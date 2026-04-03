@@ -99,14 +99,16 @@ async function fetchFromServer(): Promise<PolyEvent[] | null> {
     upcomingWeeks.setDate(upcomingWeeks.getDate() + 5 + 21);
     const maxDate = upcomingWeeks.toISOString();
 
-    const CONCURRENT = 2;
+    // 캘린더에 필요한 최소 컬럼만 select (네트워크 페이로드 축소)
+    const CALENDAR_COLUMNS = 'id,title,title_ko,slug,event_slug,end_date,volume,volume_24hr,probs,category,closed,image_url,tags';
+    const CONCURRENT = 3; // 병렬 페이지 수 증가 (2→3)
     let allData: PolyEvent[] = [];
     let offset = 0;
     let hasMore = true;
 
     const fetchPage = (off: number) => supabaseClient!
         .from('poly_events')
-        .select('id, title, title_ko, slug, event_slug, end_date, volume, volume_24hr, probs, category, closed, image_url, tags, hidden')
+        .select(CALENDAR_COLUMNS)
         .gte('end_date', now)
         .lte('end_date', maxDate)
         .gte('volume', 1000)
@@ -666,38 +668,85 @@ function gammaToPolyEvent(m: GammaMarket): PolyEvent | null {
 
 async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
     const PAGE_SIZE = 100;
+    const BATCH_SIZE = 4; // 동시 요청 수 (순차→병렬)
+    const MAX_OFFSET = 2000;
     let allMarkets: PolyEvent[] = [];
     let offset = 0;
     let hasMore = true;
 
-    while (hasMore) {
-        const url = `${GAMMA_API_BASE}/markets?closed=false&active=true&limit=${PAGE_SIZE}&offset=${offset}&order=volume&ascending=false`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Gamma API ${response.status}: ${response.statusText}`);
-
-        const markets: GammaMarket[] = await response.json();
-        if (!markets || markets.length === 0) {
-            hasMore = false;
-            break;
+    while (hasMore && offset < MAX_OFFSET) {
+        // 병렬 배치: 4개 페이지를 동시에 요청
+        const batchPromises = [];
+        for (let i = 0; i < BATCH_SIZE && (offset + i * PAGE_SIZE) < MAX_OFFSET; i++) {
+            const batchOffset = offset + i * PAGE_SIZE;
+            const url = `${GAMMA_API_BASE}/markets?closed=false&active=true&limit=${PAGE_SIZE}&offset=${batchOffset}&order=volume&ascending=false`;
+            batchPromises.push(
+                fetch(url).then(async (res) => {
+                    if (!res.ok) throw new Error(`Gamma API ${res.status}: ${res.statusText}`);
+                    return res.json() as Promise<GammaMarket[]>;
+                })
+            );
         }
 
-        for (const m of markets) {
-            const event = gammaToPolyEvent(m);
-            if (event) allMarkets.push(event);
+        const batchResults = await Promise.all(batchPromises);
+        let batchTotalRaw = 0;
+
+        for (const markets of batchResults) {
+            if (!markets || markets.length === 0) {
+                hasMore = false;
+                break;
+            }
+            batchTotalRaw += markets.length;
+            for (const m of markets) {
+                const event = gammaToPolyEvent(m);
+                if (event) allMarkets.push(event);
+            }
+            // 마지막 페이지가 PAGE_SIZE 미만이면 종료
+            if (markets.length < PAGE_SIZE) {
+                hasMore = false;
+                break;
+            }
         }
 
-        offset += PAGE_SIZE;
-        hasMore = markets.length === PAGE_SIZE;
-
-        // 최대 2000개까지만 (안전장치)
-        if (offset >= 2000) break;
+        offset += BATCH_SIZE * PAGE_SIZE;
+        if (batchTotalRaw === 0) hasMore = false;
     }
 
     return allMarkets;
 }
 
+// 99% 마켓 캐시 (탭 재진입 시 즉시 표시)
+const SUREBET_CACHE_KEY = 'polymarket_surebet_cache_v1';
+const SUREBET_CACHE_TIME_KEY = 'polymarket_surebet_cache_time_v1';
+const SUREBET_CACHE_DURATION = 60 * 1000; // 1분 (실시간 특성상 짧게)
+
 export async function loadSureBetData(): Promise<void> {
     console.log('💰 99% 마켓 데이터 로드 시작 (Gamma API)');
+
+    // SWR: 캐시가 있으면 즉시 표시 후 백그라운드 갱신
+    try {
+        const cached = localStorage.getItem(SUREBET_CACHE_KEY);
+        const cacheTime = localStorage.getItem(SUREBET_CACHE_TIME_KEY);
+        if (cached && cacheTime) {
+            const age = Date.now() - parseInt(cacheTime);
+            if (age < SUREBET_CACHE_DURATION) {
+                console.log(`⚡ 99% 마켓 캐시에서 즉시 로드 (${Math.round(age / 1000)}초 전)`);
+                setSureBetEvents(JSON.parse(cached));
+                setSureBetLastUpdate(parseInt(cacheTime));
+                // 백그라운드에서 최신 데이터 갱신
+                fetchFromGammaAPI().then(markets => {
+                    setSureBetEvents(markets);
+                    setSureBetLastUpdate(Date.now());
+                    try {
+                        localStorage.setItem(SUREBET_CACHE_KEY, JSON.stringify(markets));
+                        localStorage.setItem(SUREBET_CACHE_TIME_KEY, Date.now().toString());
+                    } catch { /* 용량 초과 무시 */ }
+                }).catch(() => { /* 백그라운드 실패 무시 */ });
+                return;
+            }
+        }
+    } catch { /* 캐시 읽기 실패 무시 */ }
+
     showSureBetLoading('Polymarket 실시간 데이터 로드 중...');
 
     try {
@@ -705,9 +754,12 @@ export async function loadSureBetData(): Promise<void> {
         console.log(`✅ 99% 마켓: ${markets.length}건 로드 (Gamma API)`);
         setSureBetEvents(markets);
         setSureBetLastUpdate(Date.now());
+        try {
+            localStorage.setItem(SUREBET_CACHE_KEY, JSON.stringify(markets));
+            localStorage.setItem(SUREBET_CACHE_TIME_KEY, Date.now().toString());
+        } catch { /* 용량 초과 무시 */ }
     } catch (error) {
         console.error('❌ Gamma API 실패, Supabase fallback:', error);
-        // Supabase fallback
         await loadSureBetFromSupabase();
     }
 }
