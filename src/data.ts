@@ -666,16 +666,63 @@ function gammaToPolyEvent(m: GammaMarket): PolyEvent | null {
     };
 }
 
-async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
+// 서버사이드 /api/surebet 엔드포인트 응답 → PolyEvent 변환
+interface SureBetAPIMarket {
+    id: string;
+    question: string;
+    slug: string;
+    eventSlug: string;
+    endDate: string;
+    volume: number;
+    volume24hr: number;
+    outcomePrices: number[];
+    outcomes: string[];
+    image: string | null;
+    liquidity: number;
+    bestBid: number;
+    bestAsk: number;
+    spread: number;
+    description: string;
+}
+
+function sureBetAPIToPolyEvent(m: SureBetAPIMarket): PolyEvent {
+    return {
+        id: m.id,
+        title: m.question,
+        slug: m.slug,
+        event_slug: m.eventSlug,
+        end_date: m.endDate,
+        volume: m.volume,
+        volume_24hr: m.volume24hr,
+        probs: m.outcomePrices,
+        category: inferCategoryFromQuestion(m.question),
+        closed: false,
+        image_url: m.image,
+        liquidity: m.liquidity,
+        bestBid: m.bestBid,
+        bestAsk: m.bestAsk,
+        spread: m.spread,
+    };
+}
+
+// 서버사이드 API로 한번에 가져오기 (20번 → 1번 요청)
+async function fetchFromSureBetAPI(): Promise<PolyEvent[]> {
+    const response = await fetch('/api/surebet');
+    if (!response.ok) throw new Error(`SureBet API ${response.status}`);
+    const markets: SureBetAPIMarket[] = await response.json();
+    return markets.map(sureBetAPIToPolyEvent);
+}
+
+// Fallback: 클라이언트에서 직접 Gamma API 호출 (서버 API 실패 시)
+async function fetchFromGammaAPIDirect(): Promise<PolyEvent[]> {
     const PAGE_SIZE = 100;
-    const BATCH_SIZE = 4; // 동시 요청 수 (순차→병렬)
+    const BATCH_SIZE = 4;
     const MAX_OFFSET = 2000;
     let allMarkets: PolyEvent[] = [];
     let offset = 0;
     let hasMore = true;
 
     while (hasMore && offset < MAX_OFFSET) {
-        // 병렬 배치: 4개 페이지를 동시에 요청
         const batchPromises = [];
         for (let i = 0; i < BATCH_SIZE && (offset + i * PAGE_SIZE) < MAX_OFFSET; i++) {
             const batchOffset = offset + i * PAGE_SIZE;
@@ -692,20 +739,13 @@ async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
         let batchTotalRaw = 0;
 
         for (const markets of batchResults) {
-            if (!markets || markets.length === 0) {
-                hasMore = false;
-                break;
-            }
+            if (!markets || markets.length === 0) { hasMore = false; break; }
             batchTotalRaw += markets.length;
             for (const m of markets) {
                 const event = gammaToPolyEvent(m);
                 if (event) allMarkets.push(event);
             }
-            // 마지막 페이지가 PAGE_SIZE 미만이면 종료
-            if (markets.length < PAGE_SIZE) {
-                hasMore = false;
-                break;
-            }
+            if (markets.length < PAGE_SIZE) { hasMore = false; break; }
         }
 
         offset += BATCH_SIZE * PAGE_SIZE;
@@ -713,6 +753,17 @@ async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
     }
 
     return allMarkets;
+}
+
+// 통합 fetch: 서버 API 우선 → 실패 시 클라이언트 직접 호출
+async function fetchFromGammaAPI(): Promise<PolyEvent[]> {
+    try {
+        console.log('⚡ /api/surebet 서버사이드 API 호출');
+        return await fetchFromSureBetAPI();
+    } catch (err) {
+        console.warn('⚠️ 서버 API 실패, 클라이언트 직접 호출로 전환:', err);
+        return await fetchFromGammaAPIDirect();
+    }
 }
 
 // 99% 마켓 캐시 (탭 재진입 시 즉시 표시)
