@@ -40,6 +40,11 @@ const CITY_STATIONS: Record<string, CityStation> = {
 
 const CITY_ORDER = ['Seoul', 'London', 'Paris', 'Ankara', 'Wellington', 'Buenos Aires', 'Toronto', 'New York City', 'Chicago', 'Miami', 'Atlanta'];
 
+// 자동 새로고침 (60초 간격)
+const LIVE_REFRESH_INTERVAL = 60 * 1000;
+let liveRefreshTimer: ReturnType<typeof setInterval> | null = null;
+let lastLiveUpdateTime: Date | null = null;
+
 // 과거 결과 저장 (city → date → markets)
 let pastDayResults: Map<string, Map<string, WeatherMarket[]>> = new Map();
 
@@ -83,9 +88,7 @@ function getWundergroundUrl(city: string): string {
     return `https://www.wunderground.com/history/daily/${path}/date/${dateStr}`;
 }
 
-// ─── Weather.com API (WU Resolution Source와 동일) ───
-
-const WU_API_KEY = 'e1f10a1e78da46f5b10a1e78da96f525';
+// ─── Weather.com API (서버 프록시 경유) ───
 
 async function fetchHourlyWeather(city: string): Promise<HourlyWeather | null> {
     if (weatherDataCache.has(city)) return weatherDataCache.get(city)!;
@@ -94,11 +97,10 @@ async function fetchHourlyWeather(city: string): Promise<HourlyWeather | null> {
     if (!station) return null;
 
     try {
-        // Weather.com historical observations API (WU 백엔드와 동일)
         const today = new Date();
         const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-        const units = station.unit === 'F' ? 'e' : 'm';  // e=imperial, m=metric
-        const url = `https://api.weather.com/v1/location/${station.locationId}/observations/historical.json?apiKey=${WU_API_KEY}&startDate=${dateStr}&endDate=${dateStr}&units=${units}`;
+        const units = station.unit === 'F' ? 'e' : 'm';
+        const url = `/api/weather-proxy?type=wu-historical&locationId=${encodeURIComponent(station.locationId)}&startDate=${dateStr}&endDate=${dateStr}&units=${units}`;
 
         const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -146,9 +148,7 @@ async function fetchHourlyWeather(city: string): Promise<HourlyWeather | null> {
     }
 }
 
-// ─── 기상청(KMA) 단기예보 API (서울/인천공항) ───
-
-const KMA_AUTH_KEY = '16tey01xR-irXstNcTfo0w';
+// ─── 기상청(KMA) 단기예보 API (서버 프록시 경유) ───
 
 function getKmaBaseTime(): { base_date: string; base_time: string } {
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -191,7 +191,7 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
 
     try {
         const { base_date, base_time } = getKmaBaseTime();
-        const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124&authKey=${KMA_AUTH_KEY}`;
+        const url = `/api/weather-proxy?type=kma-forecast&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124`;
 
         const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`KMA HTTP ${res.status}`);
@@ -201,7 +201,7 @@ async function fetchKmaForecast(targetDate: string): Promise<HourlyWeather | nul
         if (!items || items.length === 0) throw new Error('KMA 응답 데이터 없음');
 
         // targetDate 파싱 ("March 14" → "20260314")
-        const targetDateObj = new Date(targetDate + ', 2026');
+        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
         const targetYmd = `${targetDateObj.getFullYear()}${String(targetDateObj.getMonth() + 1).padStart(2, '0')}${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         // TMP(시간별 기온) + TMX(공식 최고기온) 추출
@@ -249,7 +249,7 @@ async function fetchKmaForecastFixed(targetDate: string): Promise<HourlyWeather 
 
     try {
         const { base_date, base_time } = getKmaFixedBaseTime();
-        const url = `/api/kma/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst?pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124&authKey=${KMA_AUTH_KEY}`;
+        const url = `/api/weather-proxy?type=kma-forecast&base_date=${base_date}&base_time=${base_time}&nx=51&ny=124`;
 
         const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`KMA HTTP ${res.status}`);
@@ -259,7 +259,7 @@ async function fetchKmaForecastFixed(targetDate: string): Promise<HourlyWeather 
         if (!items || items.length === 0) throw new Error('KMA 응답 데이터 없음');
 
         // targetDate 파싱 ("March 14" → "20260314")
-        const targetDateObj = new Date(targetDate + ', 2026');
+        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
         const targetYmd = `${targetDateObj.getFullYear()}${String(targetDateObj.getMonth() + 1).padStart(2, '0')}${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         const hours: string[] = [];
@@ -308,7 +308,7 @@ async function fetchWeatherComForecast(city: string, targetDate: string): Promis
 
     try {
         const units = station.unit === 'F' ? 'e' : 'm';
-        const url = `https://api.weather.com/v3/wx/forecast/hourly/2day?geocode=${station.lat},${station.lon}&format=json&units=${units}&language=en-US&apiKey=${WU_API_KEY}`;
+        const url = `/api/weather-proxy?type=wu-forecast&geocode=${station.lat},${station.lon}&units=${units}`;
 
         const res = await fetchWithTimeout(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -318,7 +318,7 @@ async function fetchWeatherComForecast(city: string, targetDate: string): Promis
         const allTimes: string[] = json.validTimeLocal || [];
         if (allTemps.length === 0) return null;
 
-        const targetDateObj = new Date(targetDate + ', 2026');
+        const targetDateObj = new Date(`${targetDate}, ${new Date().getFullYear()}`);
         const targetISO = `${targetDateObj.getFullYear()}-${String(targetDateObj.getMonth() + 1).padStart(2, '0')}-${String(targetDateObj.getDate()).padStart(2, '0')}`;
 
         const hours: string[] = [];
@@ -605,6 +605,7 @@ export function renderLiveTrackerView(): void {
     const container = document.getElementById('liveContent');
     if (!container) return;
 
+    lastLiveUpdateTime = new Date();
     const groups = groupByCity(liveWeatherEvents);
 
     if (groups.length === 0) {
@@ -625,7 +626,13 @@ export function renderLiveTrackerView(): void {
 
     const selectedGroup = groups.find(g => g.city === liveSelectedCity)!;
 
+    const updateTimeStr = lastLiveUpdateTime.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
     container.innerHTML = `
+        <div class="live-update-bar">
+            <span class="live-update-label" id="liveUpdateLabel">마지막 업데이트: ${updateTimeStr} KST</span>
+            <span class="live-update-countdown" id="liveCountdown"></span>
+        </div>
         <div class="city-widgets-row">
             ${groups.map(g => renderCityWidget(g, g.city === liveSelectedCity)).join('')}
         </div>
@@ -639,6 +646,46 @@ export function renderLiveTrackerView(): void {
 
     // 예보 정확도 비동기 로드
     loadAndRenderForecastAccuracy(selectedGroup.city);
+
+    // 카운트다운 표시 시작
+    startCountdownDisplay();
+}
+
+// ─── 자동 새로고침 타이머 ───
+
+export function startLiveAutoRefresh(): void {
+    stopLiveAutoRefresh();
+    liveRefreshTimer = setInterval(async () => {
+        // 캐시 무효화 후 재로드
+        weatherDataCache.clear();
+        forecastDataCache.clear();
+        await loadLiveWeatherMarkets();
+        renderLiveTrackerView();
+    }, LIVE_REFRESH_INTERVAL);
+}
+
+export function stopLiveAutoRefresh(): void {
+    if (liveRefreshTimer) {
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = null;
+    }
+    if (countdownDisplayTimer) {
+        clearInterval(countdownDisplayTimer);
+        countdownDisplayTimer = null;
+    }
+}
+
+let countdownDisplayTimer: ReturnType<typeof setInterval> | null = null;
+
+function startCountdownDisplay(): void {
+    if (countdownDisplayTimer) clearInterval(countdownDisplayTimer);
+    countdownDisplayTimer = setInterval(() => {
+        const el = document.getElementById('liveCountdown');
+        if (!el || !lastLiveUpdateTime) return;
+        const elapsed = Math.floor((Date.now() - lastLiveUpdateTime.getTime()) / 1000);
+        const remaining = Math.max(0, 60 - elapsed);
+        el.textContent = `${remaining}초 후 새로고침`;
+    }, 1000);
 }
 
 async function loadAndRenderForecastAccuracy(city: string): Promise<void> {
@@ -812,8 +859,8 @@ function renderCityDetail(group: CityWeatherGroup): string {
 
     // 날짜 정렬 (가까운 날짜 먼저)
     const sortedDates = [...dateGroups.entries()].sort((a, b) => {
-        const da = new Date(a[0] + ', 2026');
-        const db = new Date(b[0] + ', 2026');
+        const da = new Date(`${a[0]}, ${new Date().getFullYear()}`);
+        const db = new Date(`${b[0]}, ${new Date().getFullYear()}`);
         return da.getTime() - db.getTime();
     });
 

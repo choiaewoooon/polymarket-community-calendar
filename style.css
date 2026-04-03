@@ -4874,6 +4874,28 @@ body.admin-mode .container {
 .wt-past-line.no { color: var(--accent-red); opacity: 0.6; }
 
 /* 로딩 + 빈 상태 */
+.live-update-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.live-update-label {
+    color: var(--text-muted);
+}
+
+.live-update-countdown {
+    color: var(--accent-cyan);
+    font-weight: 500;
+}
+
 .live-loading, .live-empty {
     display: flex;
     flex-direction: column;

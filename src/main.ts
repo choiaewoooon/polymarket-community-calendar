@@ -10,7 +10,7 @@ import { initTooltip } from './render/tooltip.ts';
 import { closeModal } from './render/modal.ts';
 import { initV2Admin } from './admin.ts';
 import { calendarOverviewStartWeek, setCalendarOverviewStartWeek, setCurrentDate, allEvents, currentTab, setCurrentTab, koreaEvents, sureBetEvents, liveWeatherEvents } from './state.ts';
-import { renderLiveTrackerView, initLiveTrackerListeners, loadLiveWeatherMarkets } from './render/liveTrackerView.ts';
+import { renderLiveTrackerView, initLiveTrackerListeners, loadLiveWeatherMarkets, startLiveAutoRefresh, stopLiveAutoRefresh } from './render/liveTrackerView.ts';
 import { onSwipe } from './touch.ts';
 import type { PageTab } from './state.ts';
 import { getKSTToday, addDays, toKSTDateString } from './utils.ts';
@@ -283,6 +283,12 @@ async function switchTab(tab: PageTab, pushState = true): Promise<void> {
             await loadLiveWeatherMarkets();
         }
         renderLiveTrackerView();
+        startLiveAutoRefresh();
+    }
+
+    // live 탭이 아닐 때 자동 새로고침 중지
+    if (tab !== 'live') {
+        stopLiveAutoRefresh();
     }
 }
 
