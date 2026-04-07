@@ -195,15 +195,27 @@ export default async function handler(req, res) {
 
     try {
         const sb = await getSupabase();
+        const now = kstNow();
+        const hour = now.getHours();
 
-        const [captureResults, resolveResults] = await Promise.all([
-            captureForecasts(sb),
-            resolveActuals(sb),
-        ]);
+        // KST 시간대 기반 동작 분기:
+        // - 04:00~12:00 KST → 예보 캡처만 (아침 예보가 가장 의미있는 데이터)
+        // - 그 외 (12:00~04:00) → 실측 반영만
+        const isCapturePeriod = hour >= 4 && hour < 12;
+
+        let captureResults = [];
+        let resolveResults = [];
+
+        if (isCapturePeriod) {
+            captureResults = await captureForecasts(sb);
+        } else {
+            resolveResults = await resolveActuals(sb);
+        }
 
         return res.status(200).json({
             ok: true,
-            timestamp: kstNow().toISOString(),
+            timestamp: now.toISOString(),
+            mode: isCapturePeriod ? 'capture' : 'resolve',
             capture: captureResults,
             resolve: resolveResults,
         });

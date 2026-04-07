@@ -471,13 +471,13 @@ function groupByCity(events: PolyEvent[]): CityWeatherGroup[] {
 
 function filterTodayMarkets(events: PolyEvent[]): PolyEvent[] {
     const now = new Date();
-    const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
 
     return events.filter(e => {
-        const endStr = new Date(e.end_date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        const endStr = new Date(e.end_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
         return endStr === todayStr || endStr === tomorrowStr;
     });
 }
@@ -536,7 +536,7 @@ export async function loadLiveWeatherMarkets(): Promise<void> {
             for (const event of pastResult.data as PolyEvent[]) {
                 const parsed = parseWeatherMarket(event);
                 if (!parsed) continue;
-                const dateStr = new Date(event.end_date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+                const dateStr = new Date(event.end_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
                 if (!pastDayResults.has(parsed.city)) pastDayResults.set(parsed.city, new Map());
                 const cityMap = pastDayResults.get(parsed.city)!;
                 if (!cityMap.has(dateStr)) cityMap.set(dateStr, []);
@@ -683,6 +683,7 @@ export function startLiveAutoRefresh(): void {
             // 캐시 무효화 후 재로드
             weatherDataCache.clear();
             forecastDataCache.clear();
+            forecastAccuracyCache.clear();
             await loadLiveWeatherMarkets();
             if (!renderAbortController.signal.aborted) {
                 renderLiveTrackerView();
