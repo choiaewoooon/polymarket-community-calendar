@@ -4,6 +4,8 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 
 > **프로덕션**: https://polymarket-calender.vercel.app
 
+이 데모에서 검증한 데이터탭은 이후 [marketmarket.io](https://marketmarket.io) 본 서비스에 통합되어 운영 중입니다. 이 레포는 통합 전의 공개 검증본입니다.
+
 ---
 
 ## 페이지 구성 및 URL
@@ -11,7 +13,7 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 | 페이지 | URL | 설명 |
 |--------|-----|------|
 | 캘린더 (메인) | [`/`](https://polymarket-calender.vercel.app) | 주간 타임라인 + 월간 캘린더 |
-| 99% 마켓 | [`/99market`](https://polymarket-calender.vercel.app/99market) | 확률 90%+ 단기 확정 수익 기회 |
+| 99% 마켓 | [`/99market`](https://polymarket-calender.vercel.app/99market) | 확률 90%+ 단기 고확률 시장 모아보기 |
 | 한국 시장 | [`/komarket`](https://polymarket-calender.vercel.app/komarket) | 한국 관련 예측 시장 모아보기 |
 | 라이브 트래커 | [`/live`](https://polymarket-calender.vercel.app/live) | 시장 × 실시간 데이터 (날씨 등) |
 | 관리자 (V1) | [`/admin/`](https://polymarket-calender.vercel.app/admin/) | 테이블 형태 시장 관리 대시보드 |
@@ -52,7 +54,7 @@ Polymarket 예측 시장 데이터를 캘린더/타임라인 형식으로 시각
 
 ### 2. 99% 마켓 (`/99market`)
 
-확률 90% 이상인 시장을 모아 단기 확정 수익 기회를 보여줍니다.
+확률 90% 이상인 시장을 모아 고확률 구간을 한눈에 탐색할 수 있게 합니다.
 
 **주요 기능**
 - 최소 확률 필터: 90%+ / 95%+ / 99%+
